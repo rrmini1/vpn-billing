@@ -11,7 +11,17 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable([
+    'name',
+    'email',
+    'password',
+    'telegram_id',
+    'telegram_username',
+    'telegram_first_name',
+    'telegram_last_name',
+    'telegram_photo_url',
+    'telegram_auth_date',
+])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -28,6 +38,7 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'telegram_auth_date' => 'datetime',
         ];
     }
 }

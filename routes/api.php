@@ -6,9 +6,20 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('web')->prefix('auth')->group(function (): void {
     Route::post('register', [AuthController::class, 'register']);
     Route::post('login', [AuthController::class, 'login']);
+    Route::post('forgot-password', [AuthController::class, 'forgotPassword']);
+    Route::post('reset-password', [AuthController::class, 'resetPassword']);
 
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('logout', [AuthController::class, 'logout']);
         Route::get('me', [AuthController::class, 'me']);
     });
+});
+
+Route::middleware(['web', 'auth:sanctum'])->prefix('email')->group(function (): void {
+    Route::post('verification-notification', [AuthController::class, 'sendEmailVerificationNotification'])
+        ->middleware('throttle:6,1');
+
+    Route::get('verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
+        ->middleware('signed')
+        ->name('verification.verify');
 });

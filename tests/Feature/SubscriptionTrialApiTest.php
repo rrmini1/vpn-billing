@@ -33,7 +33,7 @@ class SubscriptionTrialApiTest extends TestCase
                 'username' => 'u'.$user->id.'_trial_abcdefgh',
                 'status' => 'active',
                 'data_limit' => 1073741824,
-                'subscription_url' => 'https://panel.cors-port.ru/sub/test-token/',
+                'subscription_url' => '/sub/test-token/',
                 'links' => ['nl', 'ca', 'ru'],
             ]);
 
@@ -72,9 +72,92 @@ class SubscriptionTrialApiTest extends TestCase
         ]);
     }
 
+    public function test_authenticated_user_can_fetch_current_subscription(): void
+    {
+        $user = User::factory()->create();
+        $subscription = Subscription::query()->create([
+            'user_id' => $user->id,
+            'plan_code' => 'trial',
+            'plan_name' => 'Тест',
+            'traffic_limit_bytes' => 1073741824,
+            'price_amount' => 0,
+            'currency' => 'RUB',
+            'status' => Subscription::STATUS_ACTIVE,
+            'started_at' => now(),
+        ]);
+
+        MarzbanUser::query()->create([
+            'user_id' => $user->id,
+            'subscription_id' => $subscription->id,
+            'username' => 'u'.$user->id.'_trial_abcdefgh',
+            'status' => MarzbanUser::STATUS_ACTIVE,
+            'data_limit_bytes' => 1073741824,
+            'subscription_url' => 'https://panel.cors-port.ru/sub/test-token/',
+        ]);
+
+        $this
+            ->actingAs($user)
+            ->getJson('/api/subscriptions/current')
+            ->assertOk()
+            ->assertJsonPath('data.id', $subscription->id)
+            ->assertJsonPath('data.status', 'active')
+            ->assertJsonPath('data.plan.code', 'trial')
+            ->assertJsonPath('data.marzban_user.username', 'u'.$user->id.'_trial_abcdefgh')
+            ->assertJsonPath('data.marzban_user.subscription_url', 'https://panel.cors-port.ru/sub/test-token/');
+    }
+
+    public function test_current_subscription_normalizes_stored_relative_subscription_url(): void
+    {
+        $user = User::factory()->create();
+        $subscription = Subscription::query()->create([
+            'user_id' => $user->id,
+            'plan_code' => 'trial',
+            'plan_name' => 'Тест',
+            'traffic_limit_bytes' => 1073741824,
+            'price_amount' => 0,
+            'currency' => 'RUB',
+            'status' => Subscription::STATUS_ACTIVE,
+            'started_at' => now(),
+        ]);
+
+        MarzbanUser::query()->create([
+            'user_id' => $user->id,
+            'subscription_id' => $subscription->id,
+            'username' => 'u'.$user->id.'_trial_abcdefgh',
+            'status' => MarzbanUser::STATUS_ACTIVE,
+            'data_limit_bytes' => 1073741824,
+            'subscription_url' => '/sub/test-token/',
+        ]);
+
+        $this
+            ->actingAs($user)
+            ->getJson('/api/subscriptions/current')
+            ->assertOk()
+            ->assertJsonPath('data.marzban_user.subscription_url', 'https://panel.cors-port.ru/sub/test-token/');
+    }
+
+    public function test_current_subscription_returns_null_when_user_has_no_subscription(): void
+    {
+        $user = User::factory()->create();
+
+        $this
+            ->actingAs($user)
+            ->getJson('/api/subscriptions/current')
+            ->assertOk()
+            ->assertExactJson([
+                'data' => null,
+            ]);
+    }
+
     public function test_guest_cannot_create_trial_subscription(): void
     {
         $this->postJson('/api/subscriptions/trial')
+            ->assertUnauthorized();
+    }
+
+    public function test_guest_cannot_fetch_current_subscription(): void
+    {
+        $this->getJson('/api/subscriptions/current')
             ->assertUnauthorized();
     }
 

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -25,6 +26,20 @@ class MarzbanUser extends Model
             'data_limit_bytes' => 'integer',
             'raw_response' => 'array',
         ];
+    }
+
+    /**
+     * @return Attribute<?string, never>
+     */
+    protected function subscriptionUrl(): Attribute
+    {
+        return Attribute::get(function (?string $value): ?string {
+            if (! $value || str_starts_with($value, 'http://') || str_starts_with($value, 'https://')) {
+                return $value;
+            }
+
+            return rtrim((string) config('marzban.base_url'), '/').'/'.ltrim($value, '/');
+        });
     }
 
     /**

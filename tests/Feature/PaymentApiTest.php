@@ -38,6 +38,12 @@ class PaymentApiTest extends TestCase
             ->assertJsonPath('data.amount', 0)
             ->assertJsonPath('data.currency', 'RUB');
 
+        $this->assertStringStartsWith(
+            'http://localhost:8083/mock-payments/mock_',
+            $response->json('data.confirmation_url'),
+        );
+        $this->assertNotNull($response->json('data.expires_at'));
+
         $this->assertDatabaseHas('payments', [
             'user_id' => $user->id,
             'plan_code' => 'start',
@@ -45,6 +51,13 @@ class PaymentApiTest extends TestCase
             'amount' => 0,
             'currency' => 'RUB',
         ]);
+
+        $payment = Payment::query()->where('user_id', $user->id)->firstOrFail();
+
+        $this->assertStringStartsWith('mock_', $payment->provider_payment_id);
+        $this->assertStringStartsWith('http://localhost:8083/mock-payments/mock_', $payment->confirmation_url);
+        $this->assertNotNull($payment->expires_at);
+        $this->assertSame($payment->provider_payment_id, $payment->provider_payload['payment_id']);
     }
 
     public function test_user_can_list_own_payments(): void

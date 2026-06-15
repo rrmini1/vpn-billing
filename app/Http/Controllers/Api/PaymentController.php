@@ -7,10 +7,10 @@ use App\Http\Resources\PaymentResource;
 use App\Models\Payment;
 use App\Models\Plan;
 use App\Services\Payments\PaymentActivationService;
+use App\Services\Payments\PaymentProvider;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Str;
 
 class PaymentController extends Controller
 {
@@ -24,7 +24,7 @@ class PaymentController extends Controller
         return PaymentResource::collection($payments);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(Request $request, PaymentProvider $provider): JsonResponse
     {
         $attributes = $request->validate([
             'plan_code' => ['required', 'string', 'exists:plans,code'],
@@ -42,7 +42,7 @@ class PaymentController extends Controller
             ], 422);
         }
 
-        $payment = Payment::query()->create([
+        $payment = Payment::query()->make([
             'user_id' => $request->user()->id,
             'plan_id' => $plan->id,
             'plan_code' => $plan->code,
@@ -51,9 +51,17 @@ class PaymentController extends Controller
             'amount' => $plan->price_amount,
             'currency' => $plan->currency,
             'status' => Payment::STATUS_PENDING,
-            'provider' => 'mock',
-            'provider_payment_id' => 'mock_'.Str::uuid(),
         ]);
+
+        $providerResult = $provider->createPayment($payment);
+
+        $payment->forceFill([
+            'provider' => $providerResult->provider,
+            'provider_payment_id' => $providerResult->providerPaymentId,
+            'confirmation_url' => $providerResult->confirmationUrl,
+            'expires_at' => $providerResult->expiresAt,
+            'provider_payload' => $providerResult->payload,
+        ])->save();
 
         return (new PaymentResource($payment))
             ->response()

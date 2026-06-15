@@ -23,6 +23,8 @@ class Subscription extends Model
 {
     public const STATUS_ACTIVE = 'active';
 
+    public const STATUS_REPLACED = 'replaced';
+
     protected function casts(): array
     {
         return [

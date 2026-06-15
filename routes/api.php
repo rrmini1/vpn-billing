@@ -33,5 +33,6 @@ Route::middleware(['web', 'auth:sanctum'])->prefix('email')->group(function (): 
 
 Route::middleware(['web', 'auth:sanctum'])->prefix('subscriptions')->group(function (): void {
     Route::get('current', [SubscriptionController::class, 'current']);
+    Route::post('checkout', [SubscriptionController::class, 'checkout']);
     Route::post('trial', [SubscriptionController::class, 'trial']);
 });

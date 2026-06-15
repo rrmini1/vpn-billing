@@ -187,6 +187,10 @@ class PaymentApiTest extends TestCase
     public function test_guest_cannot_access_payments(): void
     {
         $this->getJson('/api/payments')->assertUnauthorized();
-        $this->postJson('/api/payments', ['plan_code' => 'start'])->assertUnauthorized();
+        $this
+            ->withSession(['_token' => 'test-csrf-token'])
+            ->withHeader('X-CSRF-TOKEN', 'test-csrf-token')
+            ->postJson('/api/payments', ['plan_code' => 'start'])
+            ->assertUnauthorized();
     }
 }

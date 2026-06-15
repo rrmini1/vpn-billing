@@ -151,7 +151,10 @@ class SubscriptionTrialApiTest extends TestCase
 
     public function test_guest_cannot_create_trial_subscription(): void
     {
-        $this->postJson('/api/subscriptions/trial')
+        $this
+            ->withSession(['_token' => 'test-csrf-token'])
+            ->withHeader('X-CSRF-TOKEN', 'test-csrf-token')
+            ->postJson('/api/subscriptions/trial')
             ->assertUnauthorized();
     }
 

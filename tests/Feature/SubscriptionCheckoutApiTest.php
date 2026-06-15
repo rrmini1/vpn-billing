@@ -268,8 +268,12 @@ class SubscriptionCheckoutApiTest extends TestCase
 
     public function test_guest_cannot_checkout(): void
     {
-        $this->postJson('/api/subscriptions/checkout', [
-            'plan_code' => 'start',
-        ])->assertUnauthorized();
+        $this
+            ->withSession(['_token' => 'test-csrf-token'])
+            ->withHeader('X-CSRF-TOKEN', 'test-csrf-token')
+            ->postJson('/api/subscriptions/checkout', [
+                'plan_code' => 'start',
+            ])
+            ->assertUnauthorized();
     }
 }

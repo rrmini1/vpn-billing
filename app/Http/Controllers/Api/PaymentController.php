@@ -4,13 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\PaymentResource;
-use App\Jobs\ActivatePaidSubscriptionJob;
 use App\Models\Payment;
 use App\Models\Plan;
+use App\Services\Payments\PaymentActivationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class PaymentController extends Controller
@@ -64,6 +63,7 @@ class PaymentController extends Controller
     public function simulatePaid(
         Request $request,
         Payment $payment,
+        PaymentActivationService $activation,
     ): JsonResponse {
         if ($payment->user_id !== $request->user()->id) {
             abort(404);
@@ -81,16 +81,7 @@ class PaymentController extends Controller
             ], 422);
         }
 
-        DB::transaction(function () use ($payment): void {
-            $payment->forceFill([
-                'status' => Payment::STATUS_PAID,
-                'activation_status' => Payment::ACTIVATION_PENDING,
-                'activation_error' => null,
-                'paid_at' => now(),
-            ])->save();
-        });
-
-        ActivatePaidSubscriptionJob::dispatch($payment->id);
+        $activation->markPaidAndDispatch($payment);
 
         return response()->json([
             'payment' => new PaymentResource($payment->refresh()),

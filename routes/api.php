@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\PaymentWebhookController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\SubscriptionController;
@@ -47,4 +48,8 @@ Route::middleware(['web', 'auth:sanctum'])->prefix('payments')->group(function (
     Route::get('/', [PaymentController::class, 'index']);
     Route::post('/', [PaymentController::class, 'store']);
     Route::post('{payment}/simulate-paid', [PaymentController::class, 'simulatePaid']);
+});
+
+Route::prefix('webhooks/payments')->group(function (): void {
+    Route::post('mock', [PaymentWebhookController::class, 'handleMock']);
 });

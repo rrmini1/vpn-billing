@@ -3,11 +3,14 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\PlanController;
+use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\TelegramAuthController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('plans', [PlanController::class, 'index']);
+
+Route::middleware(['web', 'auth:sanctum'])->get('profile', [ProfileController::class, 'show']);
 
 Route::middleware('web')->prefix('auth')->group(function (): void {
     Route::post('register', [AuthController::class, 'register']);

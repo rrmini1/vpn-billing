@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\TelegramAuthController;
@@ -35,4 +36,10 @@ Route::middleware(['web', 'auth:sanctum'])->prefix('subscriptions')->group(funct
     Route::get('current', [SubscriptionController::class, 'current']);
     Route::post('checkout', [SubscriptionController::class, 'checkout']);
     Route::post('trial', [SubscriptionController::class, 'trial']);
+});
+
+Route::middleware(['web', 'auth:sanctum'])->prefix('payments')->group(function (): void {
+    Route::get('/', [PaymentController::class, 'index']);
+    Route::post('/', [PaymentController::class, 'store']);
+    Route::post('{payment}/simulate-paid', [PaymentController::class, 'simulatePaid']);
 });

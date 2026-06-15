@@ -58,4 +58,12 @@ class Subscription extends Model
     {
         return $this->hasOne(MarzbanUser::class);
     }
+
+    /**
+     * @return HasOne<Payment>
+     */
+    public function payment(): HasOne
+    {
+        return $this->hasOne(Payment::class);
+    }
 }

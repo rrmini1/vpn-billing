@@ -16,9 +16,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'amount',
     'currency',
     'status',
+    'activation_status',
+    'activation_error',
     'provider',
     'provider_payment_id',
     'metadata',
+    'activated_at',
     'paid_at',
     'failed_at',
     'cancelled_at',
@@ -33,12 +36,21 @@ class Payment extends Model
 
     public const STATUS_CANCELLED = 'cancelled';
 
+    public const ACTIVATION_PENDING = 'pending';
+
+    public const ACTIVATION_PROCESSING = 'processing';
+
+    public const ACTIVATION_SUCCEEDED = 'succeeded';
+
+    public const ACTIVATION_FAILED = 'failed';
+
     protected function casts(): array
     {
         return [
             'traffic_limit_bytes' => 'integer',
             'amount' => 'integer',
             'metadata' => 'array',
+            'activated_at' => 'datetime',
             'paid_at' => 'datetime',
             'failed_at' => 'datetime',
             'cancelled_at' => 'datetime',

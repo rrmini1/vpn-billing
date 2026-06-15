@@ -17,6 +17,8 @@ class PaymentResource extends JsonResource
         return [
             'id' => $this->id,
             'status' => $this->status,
+            'activation_status' => $this->activation_status,
+            'activation_error' => $this->activation_error,
             'provider' => $this->provider,
             'provider_payment_id' => $this->provider_payment_id,
             'amount' => $this->amount,
@@ -28,6 +30,7 @@ class PaymentResource extends JsonResource
                 'traffic_limit_bytes' => $this->traffic_limit_bytes,
             ],
             'subscription_id' => $this->subscription_id,
+            'activated_at' => $this->activated_at?->toISOString(),
             'paid_at' => $this->paid_at?->toISOString(),
             'failed_at' => $this->failed_at?->toISOString(),
             'cancelled_at' => $this->cancelled_at?->toISOString(),

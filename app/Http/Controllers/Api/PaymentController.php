@@ -2,14 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Exceptions\Marzban\MarzbanApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\PaymentResource;
-use App\Http\Resources\SubscriptionResource;
+use App\Jobs\ActivatePaidSubscriptionJob;
 use App\Models\Payment;
 use App\Models\Plan;
-use App\Services\Marzban\MarzbanService;
-use App\Services\Subscriptions\SubscriptionActivator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -67,8 +64,6 @@ class PaymentController extends Controller
     public function simulatePaid(
         Request $request,
         Payment $payment,
-        MarzbanService $marzban,
-        SubscriptionActivator $activator,
     ): JsonResponse {
         if ($payment->user_id !== $request->user()->id) {
             abort(404);
@@ -80,35 +75,25 @@ class PaymentController extends Controller
             ], 409);
         }
 
-        $plan = $payment->plan;
-
-        if (! $plan) {
+        if (! $payment->plan) {
             return response()->json([
                 'message' => 'Payment plan is no longer available.',
             ], 422);
         }
 
-        try {
-            $subscription = $activator->activate($request->user(), $plan, $marzban);
-        } catch (MarzbanApiException $exception) {
-            report($exception);
-
-            return response()->json([
-                'message' => 'Could not activate subscription in Marzban.',
-            ], 502);
-        }
-
-        DB::transaction(function () use ($payment, $subscription): void {
+        DB::transaction(function () use ($payment): void {
             $payment->forceFill([
-                'subscription_id' => $subscription->id,
                 'status' => Payment::STATUS_PAID,
+                'activation_status' => Payment::ACTIVATION_PENDING,
+                'activation_error' => null,
                 'paid_at' => now(),
             ])->save();
         });
 
+        ActivatePaidSubscriptionJob::dispatch($payment->id);
+
         return response()->json([
             'payment' => new PaymentResource($payment->refresh()),
-            'subscription' => new SubscriptionResource($subscription),
-        ]);
+        ], 202);
     }
 }

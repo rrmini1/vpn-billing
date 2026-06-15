@@ -2,16 +2,15 @@
 
 namespace Tests\Feature;
 
-use App\Exceptions\Marzban\MarzbanApiException;
+use App\Jobs\ActivatePaidSubscriptionJob;
 use App\Models\MarzbanUser;
 use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
-use App\Services\Marzban\MarzbanService;
 use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Mockery;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class PaymentApiTest extends TestCase
@@ -83,9 +82,11 @@ class PaymentApiTest extends TestCase
             ->assertJsonPath('data.0.plan.code', 'start');
     }
 
-    public function test_simulate_paid_activates_subscription_and_marks_payment_paid(): void
+    public function test_simulate_paid_marks_payment_paid_and_dispatches_activation_job(): void
     {
         $this->seed(PlanSeeder::class);
+        Queue::fake();
+
         $user = User::factory()->create();
         $plan = Plan::query()->where('code', 'start')->firstOrFail();
         $trial = Subscription::query()->create([
@@ -118,26 +119,6 @@ class PaymentApiTest extends TestCase
             'provider' => 'mock',
         ]);
 
-        $marzban = Mockery::mock(MarzbanService::class);
-        $marzban->shouldReceive('getUser')
-            ->once()
-            ->with('u'.$user->id.'_trial_abcdefgh')
-            ->andReturn([
-                'username' => 'u'.$user->id.'_trial_abcdefgh',
-                'data_limit' => 1073741824,
-                'used_traffic' => 0,
-            ]);
-        $marzban->shouldReceive('updateUserLimit')
-            ->once()
-            ->with('u'.$user->id.'_trial_abcdefgh', 54760833024)
-            ->andReturn([
-                'username' => 'u'.$user->id.'_trial_abcdefgh',
-                'status' => 'active',
-                'data_limit' => 54760833024,
-                'subscription_url' => '/sub/test-token/',
-            ]);
-        $this->app->instance(MarzbanService::class, $marzban);
-
         $response = $this
             ->actingAs($user)
             ->withSession(['_token' => 'test-csrf-token'])
@@ -145,18 +126,22 @@ class PaymentApiTest extends TestCase
             ->postJson('/api/payments/'.$payment->id.'/simulate-paid');
 
         $response
-            ->assertOk()
+            ->assertAccepted()
             ->assertJsonPath('payment.status', 'paid')
-            ->assertJsonPath('payment.plan.code', 'start')
-            ->assertJsonPath('subscription.plan.code', 'start')
-            ->assertJsonPath('subscription.marzban_user.data_limit_bytes', 54760833024);
+            ->assertJsonPath('payment.activation_status', 'pending')
+            ->assertJsonPath('payment.plan.code', 'start');
 
         $this->assertDatabaseHas('payments', [
             'id' => $payment->id,
             'status' => Payment::STATUS_PAID,
+            'activation_status' => Payment::ACTIVATION_PENDING,
         ]);
         $this->assertNotNull($payment->refresh()->paid_at);
-        $this->assertNotNull($payment->subscription_id);
+
+        Queue::assertPushed(
+            ActivatePaidSubscriptionJob::class,
+            fn (ActivatePaidSubscriptionJob $job): bool => $job->paymentId === $payment->id,
+        );
     }
 
     public function test_simulate_paid_rejects_non_pending_payment(): void
@@ -184,47 +169,6 @@ class PaymentApiTest extends TestCase
             ->postJson('/api/payments/'.$payment->id.'/simulate-paid')
             ->assertStatus(409)
             ->assertJsonPath('message', 'Payment is not pending.');
-    }
-
-    public function test_marzban_failure_does_not_mark_payment_paid(): void
-    {
-        $this->seed(PlanSeeder::class);
-        $user = User::factory()->create();
-        $plan = Plan::query()->where('code', 'start')->firstOrFail();
-        $payment = Payment::query()->create([
-            'user_id' => $user->id,
-            'plan_id' => $plan->id,
-            'plan_code' => 'start',
-            'plan_name' => 'Старт',
-            'traffic_limit_bytes' => 53687091200,
-            'amount' => 0,
-            'currency' => 'RUB',
-            'status' => Payment::STATUS_PENDING,
-            'provider' => 'mock',
-        ]);
-
-        $marzban = Mockery::mock(MarzbanService::class);
-        $marzban->shouldReceive('createUser')
-            ->once()
-            ->andThrow(new MarzbanApiException('Marzban API request failed.', 500));
-        $this->app->instance(MarzbanService::class, $marzban);
-
-        $this
-            ->actingAs($user)
-            ->withSession(['_token' => 'test-csrf-token'])
-            ->withHeader('X-CSRF-TOKEN', 'test-csrf-token')
-            ->postJson('/api/payments/'.$payment->id.'/simulate-paid')
-            ->assertStatus(502)
-            ->assertJsonPath('message', 'Could not activate subscription in Marzban.');
-
-        $this->assertDatabaseHas('payments', [
-            'id' => $payment->id,
-            'status' => Payment::STATUS_PENDING,
-        ]);
-        $this->assertDatabaseMissing('subscriptions', [
-            'user_id' => $user->id,
-            'plan_code' => 'start',
-        ]);
     }
 
     public function test_guest_cannot_access_payments(): void

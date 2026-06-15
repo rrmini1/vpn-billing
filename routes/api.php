@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\PlanController;
+use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\TelegramAuthController;
 use Illuminate\Support\Facades\Route;
 
@@ -28,4 +29,8 @@ Route::middleware(['web', 'auth:sanctum'])->prefix('email')->group(function (): 
     Route::get('verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
         ->middleware('signed')
         ->name('verification.verify');
+});
+
+Route::middleware(['web', 'auth:sanctum'])->prefix('subscriptions')->group(function (): void {
+    Route::post('trial', [SubscriptionController::class, 'trial']);
 });

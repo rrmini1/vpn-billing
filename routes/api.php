@@ -1,6 +1,10 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Api\Admin\PaymentController as AdminPaymentController;
+use App\Http\Controllers\Api\Admin\PlanController as AdminPlanController;
+use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\PaymentWebhookController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\PlanController;
@@ -48,6 +52,15 @@ Route::middleware('auth:web')->prefix('payments')->group(function (): void {
     Route::get('/', [PaymentController::class, 'index']);
     Route::post('/', [PaymentController::class, 'store']);
     Route::post('{payment}/simulate-paid', [PaymentController::class, 'simulatePaid']);
+});
+
+Route::middleware(['auth:web', 'admin'])->prefix('admin')->group(function (): void {
+    Route::get('dashboard', [AdminDashboardController::class, 'show']);
+    Route::get('users', [AdminUserController::class, 'index']);
+    Route::get('payments', [AdminPaymentController::class, 'index']);
+    Route::get('plans', [AdminPlanController::class, 'index']);
+    Route::post('plans', [AdminPlanController::class, 'store']);
+    Route::patch('plans/{plan}', [AdminPlanController::class, 'update']);
 });
 
 Route::prefix('webhooks/payments')->group(function (): void {

@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { LogOut, Receipt, Server, UserRound } from '@lucide/vue';
+import { LogOut, Receipt, Server, ShieldCheck, UserRound } from '@lucide/vue';
 import { useAuth } from './composables/useAuth';
 import { useI18n } from './composables/useI18n';
 
@@ -95,6 +95,10 @@ async function logout() {
                         <v-btn :to="{ name: 'payments' }" value="payments">
                             <Receipt :size="20" />
                             <span>{{ t('navigation.payments') }}</span>
+                        </v-btn>
+                        <v-btn v-if="auth.state.user?.role === 'admin'" :to="{ name: 'admin' }" value="admin">
+                            <ShieldCheck :size="20" />
+                            <span>{{ t('navigation.admin') }}</span>
                         </v-btn>
                     </v-bottom-navigation>
                 </v-layout>

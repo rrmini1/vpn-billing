@@ -3,6 +3,7 @@ import DashboardPage from './pages/DashboardPage.vue';
 import LoginPage from './pages/LoginPage.vue';
 import PaymentsPage from './pages/PaymentsPage.vue';
 import PlansPage from './pages/PlansPage.vue';
+import AdminPage from './pages/AdminPage.vue';
 
 export default createRouter({
     history: createWebHistory('/app'),
@@ -11,5 +12,6 @@ export default createRouter({
         { path: '/login', name: 'login', component: LoginPage },
         { path: '/plans', name: 'plans', component: PlansPage },
         { path: '/payments', name: 'payments', component: PaymentsPage },
+        { path: '/admin', name: 'admin', component: AdminPage },
     ],
 });

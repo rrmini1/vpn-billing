@@ -30,6 +30,11 @@ class PaymentResource extends JsonResource
                 'name' => $this->plan_name,
                 'traffic_limit_bytes' => $this->traffic_limit_bytes,
             ],
+            'user' => $this->whenLoaded('user', fn (): array => [
+                'id' => $this->user->id,
+                'name' => $this->user->name,
+                'email' => $this->user->email,
+            ]),
             'subscription_id' => $this->subscription_id,
             'expires_at' => $this->expires_at?->toISOString(),
             'activated_at' => $this->activated_at?->toISOString(),

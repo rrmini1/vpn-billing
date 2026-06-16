@@ -14,4 +14,12 @@ export const billingApi = {
     simulatePaid: (paymentId) => api(`/api/payments/${paymentId}/simulate-paid`, {
         method: 'POST',
     }),
+    adminDashboard: () => api('/api/admin/dashboard'),
+    adminUsers: (params = {}) => api(`/api/admin/users?${new URLSearchParams(params)}`),
+    adminPlans: () => api('/api/admin/plans'),
+    updateAdminPlan: (planId, payload) => api(`/api/admin/plans/${planId}`, {
+        method: 'PATCH',
+        body: payload,
+    }),
+    adminPayments: (params = {}) => api(`/api/admin/payments?${new URLSearchParams(params)}`),
 };

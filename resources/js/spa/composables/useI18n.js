@@ -56,6 +56,7 @@ const messages = {
             buyButton: 'Купить',
             trialActivated: 'Trial активирован',
             paymentQueued: 'Платеж создан, активация отправлена в очередь',
+            paymentCreated: 'Платеж создан',
         },
         payments: {
             title: 'Платежи',
@@ -121,6 +122,7 @@ const messages = {
             buyButton: 'Buy',
             trialActivated: 'Trial activated',
             paymentQueued: 'Payment created, activation has been queued',
+            paymentCreated: 'Payment created',
         },
         payments: {
             title: 'Payments',

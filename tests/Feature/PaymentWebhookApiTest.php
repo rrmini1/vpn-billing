@@ -8,6 +8,7 @@ use App\Models\Plan;
 use App\Models\User;
 use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
@@ -100,7 +101,108 @@ class PaymentWebhookApiTest extends TestCase
         Queue::assertNothingPushed();
     }
 
-    private function createPendingPayment(): Payment
+    public function test_yookassa_webhook_marks_confirmed_payment_paid_and_dispatches_activation_job(): void
+    {
+        $this->seed(PlanSeeder::class);
+        Queue::fake();
+        Http::fake([
+            'https://api.yookassa.ru/v3/payments/yoo-payment-1' => Http::response([
+                'id' => 'yoo-payment-1',
+                'status' => 'succeeded',
+                'paid' => true,
+                'amount' => [
+                    'value' => '0.00',
+                    'currency' => 'RUB',
+                ],
+            ], 200),
+        ]);
+        config([
+            'payments.yookassa.shop_id' => 'test-shop-id',
+            'payments.yookassa.secret_key' => 'test-secret-key',
+        ]);
+
+        $payment = $this->createPendingPayment('yookassa', 'yoo-payment-1');
+
+        $this
+            ->postJson('/api/webhooks/payments/yookassa', [
+                'event' => 'payment.succeeded',
+                'object' => [
+                    'id' => 'yoo-payment-1',
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('payment.status', 'paid')
+            ->assertJsonPath('payment.activation_status', 'pending')
+            ->assertJsonPath('dispatched', true);
+
+        Queue::assertPushed(
+            ActivatePaidSubscriptionJob::class,
+            fn (ActivatePaidSubscriptionJob $job): bool => $job->paymentId === $payment->id,
+        );
+    }
+
+    public function test_yookassa_webhook_does_not_activate_unconfirmed_payment(): void
+    {
+        $this->seed(PlanSeeder::class);
+        Queue::fake();
+        Http::fake([
+            'https://api.yookassa.ru/v3/payments/yoo-payment-1' => Http::response([
+                'id' => 'yoo-payment-1',
+                'status' => 'pending',
+                'paid' => false,
+                'amount' => [
+                    'value' => '0.00',
+                    'currency' => 'RUB',
+                ],
+            ], 200),
+        ]);
+        config([
+            'payments.yookassa.shop_id' => 'test-shop-id',
+            'payments.yookassa.secret_key' => 'test-secret-key',
+        ]);
+
+        $payment = $this->createPendingPayment('yookassa', 'yoo-payment-1');
+
+        $this
+            ->postJson('/api/webhooks/payments/yookassa', [
+                'event' => 'payment.succeeded',
+                'object' => [
+                    'id' => 'yoo-payment-1',
+                ],
+            ])
+            ->assertAccepted()
+            ->assertJsonPath('message', 'Webhook payment is not confirmed.');
+
+        $this->assertDatabaseHas('payments', [
+            'id' => $payment->id,
+            'status' => Payment::STATUS_PENDING,
+        ]);
+        Queue::assertNothingPushed();
+    }
+
+    public function test_yookassa_webhook_marks_pending_payment_cancelled(): void
+    {
+        $this->seed(PlanSeeder::class);
+        Queue::fake();
+
+        $payment = $this->createPendingPayment('yookassa', 'yoo-payment-1');
+
+        $this
+            ->postJson('/api/webhooks/payments/yookassa', [
+                'event' => 'payment.canceled',
+                'object' => [
+                    'id' => 'yoo-payment-1',
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('payment.status', 'cancelled')
+            ->assertJsonPath('dispatched', false);
+
+        $this->assertNotNull($payment->refresh()->cancelled_at);
+        Queue::assertNothingPushed();
+    }
+
+    private function createPendingPayment(string $provider = 'mock', string $providerPaymentId = 'mock-payment-1'): Payment
     {
         $user = User::factory()->create();
         $plan = Plan::query()->where('code', 'start')->firstOrFail();
@@ -114,8 +216,8 @@ class PaymentWebhookApiTest extends TestCase
             'amount' => 0,
             'currency' => 'RUB',
             'status' => Payment::STATUS_PENDING,
-            'provider' => 'mock',
-            'provider_payment_id' => 'mock-payment-1',
+            'provider' => $provider,
+            'provider_payment_id' => $providerPaymentId,
         ]);
     }
 }

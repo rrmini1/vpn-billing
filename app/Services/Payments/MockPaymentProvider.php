@@ -17,7 +17,7 @@ class MockPaymentProvider implements PaymentProvider
             provider: 'mock',
             providerPaymentId: $providerPaymentId,
             confirmationUrl: $confirmationUrl,
-            expiresAt: now()->addMinutes(30),
+            expiresAt: now()->addMinutes((int) config('payments.mock.expires_in_minutes', 30)),
             payload: [
                 'payment_id' => $providerPaymentId,
                 'amount' => [

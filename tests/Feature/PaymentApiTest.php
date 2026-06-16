@@ -10,6 +10,7 @@ use App\Models\Subscription;
 use App\Models\User;
 use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
@@ -58,6 +59,69 @@ class PaymentApiTest extends TestCase
         $this->assertStringStartsWith('http://localhost:8083/mock-payments/mock_', $payment->confirmation_url);
         $this->assertNotNull($payment->expires_at);
         $this->assertSame($payment->provider_payment_id, $payment->provider_payload['payment_id']);
+    }
+
+    public function test_user_can_create_yookassa_payment_for_paid_plan(): void
+    {
+        config([
+            'payments.default' => 'yookassa',
+            'payments.yookassa.shop_id' => 'test-shop-id',
+            'payments.yookassa.secret_key' => 'test-secret-key',
+            'payments.yookassa.return_url' => 'https://app.cors-port.ru/app/payments',
+        ]);
+        Http::fake([
+            'https://api.yookassa.ru/v3/payments' => Http::response([
+                'id' => '2f1f0000-000f-5000-9000-000000000001',
+                'status' => 'pending',
+                'paid' => false,
+                'amount' => [
+                    'value' => '0.00',
+                    'currency' => 'RUB',
+                ],
+                'confirmation' => [
+                    'type' => 'redirect',
+                    'confirmation_url' => 'https://yoomoney.ru/checkout/payments/v2/contract?orderId=abc',
+                ],
+                'expires_at' => '2026-06-16T13:30:00.000Z',
+            ], 200),
+        ]);
+
+        $this->seed(PlanSeeder::class);
+        $user = User::factory()->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->withSession(['_token' => 'test-csrf-token'])
+            ->withHeader('X-CSRF-TOKEN', 'test-csrf-token')
+            ->postJson('/api/payments', [
+                'plan_code' => 'start',
+            ]);
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('data.status', 'pending')
+            ->assertJsonPath('data.provider', 'yookassa')
+            ->assertJsonPath('data.provider_payment_id', '2f1f0000-000f-5000-9000-000000000001')
+            ->assertJsonPath('data.confirmation_url', 'https://yoomoney.ru/checkout/payments/v2/contract?orderId=abc');
+
+        $payment = Payment::query()->where('user_id', $user->id)->firstOrFail();
+
+        $this->assertSame('yookassa', $payment->provider);
+        $this->assertSame('2f1f0000-000f-5000-9000-000000000001', $payment->provider_payment_id);
+
+        Http::assertSent(function ($request) use ($payment, $user): bool {
+            return $request->method() === 'POST'
+                && $request->url() === 'https://api.yookassa.ru/v3/payments'
+                && $request->hasHeader('Idempotence-Key')
+                && $request['capture'] === true
+                && $request['amount']['value'] === '0.00'
+                && $request['amount']['currency'] === 'RUB'
+                && $request['confirmation']['type'] === 'redirect'
+                && $request['confirmation']['return_url'] === 'https://app.cors-port.ru/app/payments'
+                && $request['metadata']['local_payment_id'] === (string) $payment->id
+                && $request['metadata']['user_id'] === (string) $user->id
+                && $request['metadata']['plan_code'] === 'start';
+        });
     }
 
     public function test_user_can_list_own_payments(): void

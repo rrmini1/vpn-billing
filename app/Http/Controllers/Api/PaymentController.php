@@ -52,6 +52,7 @@ class PaymentController extends Controller
             'currency' => $plan->currency,
             'status' => Payment::STATUS_PENDING,
         ]);
+        $payment->save();
 
         $providerResult = $provider->createPayment($payment);
 

@@ -36,8 +36,18 @@ async function activate(plan) {
             message.value = t('plans.trialActivated');
         } else {
             const payment = await billingApi.createPayment(plan.code);
-            await billingApi.simulatePaid(payment.data.id);
-            message.value = t('plans.paymentQueued');
+            if (payment.data.provider === 'mock') {
+                await billingApi.simulatePaid(payment.data.id);
+                message.value = t('plans.paymentQueued');
+                return;
+            }
+
+            if (payment.data.confirmation_url) {
+                window.location.assign(payment.data.confirmation_url);
+                return;
+            }
+
+            message.value = t('plans.paymentCreated');
         }
     } catch (e) {
         error.value = e.message;

@@ -53,3 +53,49 @@ jobs:
             ghcr.io/${{ github.repository }}-nginx:${{ github.sha }}
           cache-from: type=gha,scope=nginx
           cache-to: type=gha,scope=nginx,mode=max
+
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    needs:
+      - publish
+
+    env:
+      DEPLOY_PATH: /home/deployer/vpn-billing
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate deploy secrets
+        run: |
+          test -n "${{ secrets.VPS_HOST }}" || (echo "Missing repository secret: VPS_HOST" >&2 && exit 1)
+          test -n "${{ secrets.VPS_USER }}" || (echo "Missing repository secret: VPS_USER" >&2 && exit 1)
+          test -n "${{ secrets.VPS_SSH_KEY }}" || (echo "Missing repository secret: VPS_SSH_KEY" >&2 && exit 1)
+          test -n "${{ secrets.GHCR_TOKEN }}" || (echo "Missing repository secret: GHCR_TOKEN" >&2 && exit 1)
+          test -n "${{ secrets.GHCR_USERNAME }}" || (echo "Missing repository secret: GHCR_USERNAME" >&2 && exit 1)
+
+      - name: Upload deploy files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: deploy/docker-compose.yml,deploy/.env.example,deploy/Caddyfile
+          target: ${{ env.DEPLOY_PATH }}
+
+      - name: Pull images and restart
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            mkdir -p ${{ env.DEPLOY_PATH }}
+            cd ${{ env.DEPLOY_PATH }}
+            cp deploy/docker-compose.yml docker-compose.yml
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+            docker compose pull
+            docker compose up -d --remove-orphans
+            docker compose exec -T app php artisan migrate --force

@@ -3,10 +3,12 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuth } from '../composables/useAuth';
 import { useI18n } from '../composables/useI18n';
+import { useTelegram } from '../composables/useTelegram';
 
 const auth = useAuth();
 const { locale, setLocale, t } = useI18n();
 const router = useRouter();
+const telegram = useTelegram();
 const tab = ref('login');
 const loading = ref(false);
 const error = ref(null);
@@ -46,6 +48,20 @@ async function submitRegister() {
         loading.value = false;
     }
 }
+
+async function retryTelegramLogin() {
+    loading.value = true;
+    error.value = null;
+
+    try {
+        await auth.loginWithTelegram();
+        await router.replace({ name: 'dashboard' });
+    } catch (e) {
+        error.value = e.message;
+    } finally {
+        loading.value = false;
+    }
+}
 </script>
 
 <template>
@@ -65,6 +81,29 @@ async function submitRegister() {
                 </v-btn-toggle>
             </div>
             <div class="brand">{{ t('appName') }}</div>
+
+            <template v-if="telegram.isTelegramMiniApp">
+                <div class="telegram-auth">
+                    <v-avatar v-if="telegram.user?.photo_url" size="72" class="mb-3">
+                        <v-img :src="telegram.user.photo_url" />
+                    </v-avatar>
+                    <h1>{{ t('auth.telegramTitle') }}</h1>
+                    <p>{{ t('auth.telegramText') }}</p>
+                    <v-chip v-if="telegram.user" color="primary" variant="tonal">
+                        {{ telegram.user.first_name || telegram.user.username || 'Telegram' }}
+                    </v-chip>
+                </div>
+
+                <v-alert v-if="auth.state.error || error" type="error" variant="tonal" class="mt-4">
+                    {{ auth.state.error || error }}
+                </v-alert>
+
+                <v-btn block color="primary" class="mt-4" :loading="loading || auth.state.loading" @click="retryTelegramLogin">
+                    {{ t('auth.telegramRetry') }}
+                </v-btn>
+            </template>
+
+            <template v-else>
             <v-tabs v-model="tab" color="primary" grow>
                 <v-tab value="login">{{ t('auth.loginTab') }}</v-tab>
                 <v-tab value="register">{{ t('auth.registerTab') }}</v-tab>
@@ -97,6 +136,7 @@ async function submitRegister() {
                     </v-form>
                 </v-window-item>
             </v-window>
+            </template>
         </v-card>
     </div>
 </template>
@@ -125,5 +165,24 @@ async function submitRegister() {
     font-size: 24px;
     font-weight: 800;
     text-align: center;
+}
+
+.telegram-auth {
+    display: grid;
+    justify-items: center;
+    padding: 8px 0 4px;
+    text-align: center;
+}
+
+.telegram-auth h1 {
+    margin: 0;
+    color: #18252f;
+    font-size: 24px;
+}
+
+.telegram-auth p {
+    margin: 10px 0 14px;
+    color: #61717d;
+    line-height: 1.45;
 }
 </style>

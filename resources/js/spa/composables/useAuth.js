@@ -7,6 +7,8 @@ const state = reactive({
     loading: false,
     user: null,
     error: null,
+    isTelegramMiniApp: false,
+    telegramUser: null,
 });
 
 export function useAuth() {
@@ -16,10 +18,11 @@ export function useAuth() {
 
         try {
             const telegram = useTelegram();
+            state.isTelegramMiniApp = telegram.isTelegramMiniApp;
+            state.telegramUser = telegram.user;
 
             if (telegram.isTelegramMiniApp) {
-                const response = await authApi.telegramLogin(telegram.initData);
-                state.user = response.user;
+                await loginWithTelegram(telegram.initData);
             } else {
                 const response = await authApi.me();
                 state.user = response.user;
@@ -31,6 +34,22 @@ export function useAuth() {
             state.booted = true;
             state.loading = false;
         }
+    }
+
+    async function loginWithTelegram(initData = null) {
+        const telegram = useTelegram();
+        const payload = initData || telegram.initData;
+
+        state.isTelegramMiniApp = telegram.isTelegramMiniApp;
+        state.telegramUser = telegram.user;
+
+        if (!payload) {
+            throw new Error('Telegram auth data is missing.');
+        }
+
+        const response = await authApi.telegramLogin(payload);
+        state.user = response.user;
+        state.error = null;
     }
 
     async function login(payload) {
@@ -53,6 +72,7 @@ export function useAuth() {
         bootstrap,
         login,
         register,
+        loginWithTelegram,
         logout,
     };
 }

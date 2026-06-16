@@ -18,6 +18,10 @@ const messages = {
         auth: {
             loginTab: 'Вход',
             registerTab: 'Регистрация',
+            telegramTitle: 'Вход через Telegram',
+            telegramText: 'Мы используем ваш Telegram-профиль для входа. Email и пароль не нужны.',
+            telegramRetry: 'Повторить вход',
+            telegramOpenHint: 'Откройте кабинет через кнопку в Telegram-боте.',
             password: 'Пароль',
             name: 'Имя',
             passwordConfirmation: 'Повтор пароля',
@@ -79,6 +83,10 @@ const messages = {
         auth: {
             loginTab: 'Login',
             registerTab: 'Register',
+            telegramTitle: 'Telegram login',
+            telegramText: 'We use your Telegram profile to sign you in. No email or password needed.',
+            telegramRetry: 'Try again',
+            telegramOpenHint: 'Open the account from the Telegram bot button.',
             password: 'Password',
             name: 'Name',
             passwordConfirmation: 'Repeat password',

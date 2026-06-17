@@ -4,10 +4,13 @@ namespace Tests\Feature;
 
 use App\Models\Payment;
 use App\Models\Plan;
+use App\Models\MarzbanUser;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Services\Marzban\MarzbanService;
 use Database\Seeders\PlanSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Mockery;
 use Tests\TestCase;
 
 class AdminApiTest extends TestCase
@@ -75,10 +78,28 @@ class AdminApiTest extends TestCase
     public function test_admin_can_list_users(): void
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
-        User::factory()->create([
+        $user = User::factory()->create([
             'name' => 'Roman Client',
             'email' => 'client@example.com',
             'telegram_username' => 'client_tg',
+        ]);
+        $subscription = Subscription::query()->create([
+            'user_id' => $user->id,
+            'plan_code' => 'start',
+            'plan_name' => 'Старт',
+            'traffic_limit_bytes' => 53687091200,
+            'price_amount' => 10000,
+            'currency' => 'RUB',
+            'status' => Subscription::STATUS_ACTIVE,
+            'started_at' => now(),
+        ]);
+        MarzbanUser::query()->create([
+            'user_id' => $user->id,
+            'subscription_id' => $subscription->id,
+            'username' => 'cp_u'.$user->id.'_abcdef',
+            'status' => MarzbanUser::STATUS_ACTIVE,
+            'data_limit_bytes' => 53687091200,
+            'subscription_url' => 'https://panel.cors-port.ru/sub/test-token/',
         ]);
 
         $this
@@ -87,7 +108,63 @@ class AdminApiTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.email', 'client@example.com')
-            ->assertJsonPath('data.0.telegram.username', 'client_tg');
+            ->assertJsonPath('data.0.telegram.username', 'client_tg')
+            ->assertJsonPath('data.0.current_subscription.marzban_user.username', 'cp_u'.$user->id.'_abcdef')
+            ->assertJsonPath('data.0.current_subscription.marzban_user.data_limit_bytes', 53687091200);
+    }
+
+    public function test_admin_can_update_user_marzban_limit(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $user = User::factory()->create();
+        $subscription = Subscription::query()->create([
+            'user_id' => $user->id,
+            'plan_code' => 'start',
+            'plan_name' => 'Старт',
+            'traffic_limit_bytes' => 53687091200,
+            'price_amount' => 10000,
+            'currency' => 'RUB',
+            'status' => Subscription::STATUS_ACTIVE,
+            'started_at' => now(),
+        ]);
+        MarzbanUser::query()->create([
+            'user_id' => $user->id,
+            'subscription_id' => $subscription->id,
+            'username' => 'cp_u'.$user->id.'_abcdef',
+            'status' => MarzbanUser::STATUS_ACTIVE,
+            'data_limit_bytes' => 53687091200,
+            'subscription_url' => 'https://panel.cors-port.ru/sub/test-token/',
+        ]);
+
+        $marzban = Mockery::mock(MarzbanService::class);
+        $marzban->shouldReceive('updateUserLimit')
+            ->once()
+            ->with('cp_u'.$user->id.'_abcdef', 107374182400)
+            ->andReturn([
+                'username' => 'cp_u'.$user->id.'_abcdef',
+                'status' => 'active',
+                'data_limit' => 107374182400,
+                'subscription_url' => '/sub/test-token/',
+            ]);
+        $this->app->instance(MarzbanService::class, $marzban);
+
+        $this
+            ->actingAs($admin)
+            ->withSession(['_token' => 'test-csrf-token'])
+            ->withHeader('X-CSRF-TOKEN', 'test-csrf-token')
+            ->patchJson('/api/admin/users/'.$user->id.'/marzban-limit', [
+                'data_limit_bytes' => 107374182400,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.current_subscription.marzban_user.username', 'cp_u'.$user->id.'_abcdef')
+            ->assertJsonPath('data.current_subscription.marzban_user.data_limit_bytes', 107374182400);
+
+        $this->assertDatabaseHas('marzban_users', [
+            'user_id' => $user->id,
+            'username' => 'cp_u'.$user->id.'_abcdef',
+            'data_limit_bytes' => 107374182400,
+            'subscription_url' => '/sub/test-token/',
+        ]);
     }
 
     public function test_admin_can_update_plan(): void

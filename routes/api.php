@@ -57,6 +57,7 @@ Route::middleware('auth:web')->prefix('payments')->group(function (): void {
 Route::middleware(['auth:web', 'admin'])->prefix('admin')->group(function (): void {
     Route::get('dashboard', [AdminDashboardController::class, 'show']);
     Route::get('users', [AdminUserController::class, 'index']);
+    Route::patch('users/{user}/marzban-limit', [AdminUserController::class, 'updateMarzbanLimit']);
     Route::get('payments', [AdminPaymentController::class, 'index']);
     Route::get('plans', [AdminPlanController::class, 'index']);
     Route::post('plans', [AdminPlanController::class, 'store']);

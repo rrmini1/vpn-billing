@@ -15,7 +15,9 @@ const users = ref([]);
 const plans = ref([]);
 const payments = ref([]);
 const planDrafts = reactive({});
+const userLimitDrafts = reactive({});
 const savingPlanId = ref(null);
+const savingUserLimitId = ref(null);
 
 const trafficFormatOptions = computed(() => ({
     locale: locale.value === 'ru' ? 'ru-RU' : 'en-US',
@@ -54,6 +56,11 @@ async function loadUsers() {
         per_page: 20,
     });
     users.value = response.data;
+    users.value.forEach((user) => {
+        const dataLimitBytes = user.current_subscription?.marzban_user?.data_limit_bytes;
+
+        userLimitDrafts[user.id] = dataLimitBytes ? bytesToGb(dataLimitBytes) : null;
+    });
 }
 
 async function loadPlans() {
@@ -99,6 +106,31 @@ async function savePlan(plan) {
         error.value = e.message;
     } finally {
         savingPlanId.value = null;
+    }
+}
+
+async function saveUserLimit(user) {
+    savingUserLimitId.value = user.id;
+    error.value = null;
+    message.value = null;
+
+    try {
+        const response = await billingApi.updateAdminUserMarzbanLimit(user.id, {
+            data_limit_bytes: gbToBytes(userLimitDrafts[user.id]),
+        });
+        const index = users.value.findIndex((item) => item.id === user.id);
+
+        if (index !== -1) {
+            users.value[index] = response.data;
+            userLimitDrafts[user.id] = bytesToGb(response.data.current_subscription?.marzban_user?.data_limit_bytes);
+        }
+
+        message.value = t('admin.limitSaved');
+        await loadDashboard();
+    } catch (e) {
+        error.value = e.message;
+    } finally {
+        savingUserLimitId.value = null;
     }
 }
 
@@ -184,6 +216,9 @@ function money(amount, currency = 'RUB') {
                                     <th>Email</th>
                                     <th>{{ t('admin.telegram') }}</th>
                                     <th>{{ t('admin.subscription') }}</th>
+                                    <th>{{ t('admin.marzbanUser') }}</th>
+                                    <th>{{ t('admin.limit') }}</th>
+                                    <th></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -201,6 +236,44 @@ function money(amount, currency = 'RUB') {
                                             </div>
                                         </template>
                                         <template v-else>—</template>
+                                    </td>
+                                    <td>
+                                        <template v-if="user.current_subscription?.marzban_user">
+                                            <code>{{ user.current_subscription.marzban_user.username }}</code>
+                                            <div class="meta">{{ user.current_subscription.marzban_user.status }}</div>
+                                        </template>
+                                        <template v-else>—</template>
+                                    </td>
+                                    <td>
+                                        <template v-if="user.current_subscription?.marzban_user">
+                                            {{ formatTraffic(user.current_subscription.marzban_user.data_limit_bytes, trafficFormatOptions) }}
+                                            <div class="limit-edit">
+                                                <v-text-field
+                                                    v-model.number="userLimitDrafts[user.id]"
+                                                    class="limit-input"
+                                                    density="compact"
+                                                    type="number"
+                                                    min="1"
+                                                    step="1"
+                                                    :label="t('admin.limitGb')"
+                                                    variant="outlined"
+                                                    hide-details
+                                                />
+                                            </div>
+                                        </template>
+                                        <template v-else>—</template>
+                                    </td>
+                                    <td>
+                                        <v-btn
+                                            v-if="user.current_subscription?.marzban_user"
+                                            color="primary"
+                                            size="small"
+                                            variant="tonal"
+                                            :loading="savingUserLimitId === user.id"
+                                            @click="saveUserLimit(user)"
+                                        >
+                                            {{ t('admin.saveLimit') }}
+                                        </v-btn>
                                     </td>
                                 </tr>
                             </tbody>
@@ -329,6 +402,19 @@ h1 {
     justify-content: space-between;
     align-items: center;
     gap: 12px;
+}
+
+.limit-edit {
+    margin-top: 8px;
+}
+
+.limit-input {
+    width: 120px;
+}
+
+code {
+    color: #1d4f67;
+    font-size: 13px;
 }
 
 th,

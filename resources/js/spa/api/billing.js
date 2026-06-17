@@ -16,6 +16,10 @@ export const billingApi = {
     }),
     adminDashboard: () => api('/api/admin/dashboard'),
     adminUsers: (params = {}) => api(`/api/admin/users?${new URLSearchParams(params)}`),
+    updateAdminUserMarzbanLimit: (userId, payload) => api(`/api/admin/users/${userId}/marzban-limit`, {
+        method: 'PATCH',
+        body: payload,
+    }),
     adminPlans: () => api('/api/admin/plans'),
     updateAdminPlan: (planId, payload) => api(`/api/admin/plans/${planId}`, {
         method: 'PATCH',

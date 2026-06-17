@@ -21,6 +21,7 @@ class ProfileResource extends JsonResource
                 'name' => $this->name,
                 'email' => $this->email,
                 'role' => $this->role,
+                'locale' => $this->locale,
                 'email_verified' => $this->hasVerifiedEmail(),
                 'email_verified_at' => $this->email_verified_at?->toISOString(),
                 'telegram' => [

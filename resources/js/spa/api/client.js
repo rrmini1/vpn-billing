@@ -4,6 +4,8 @@ const jsonHeaders = {
     'X-Requested-With': 'XMLHttpRequest',
 };
 
+const localeStorageKey = 'vpn-billing-locale';
+
 function xsrfToken() {
     const cookie = document.cookie
         .split('; ')
@@ -22,6 +24,11 @@ async function csrf() {
 export async function api(path, options = {}) {
     const method = options.method || 'GET';
     const headers = { ...jsonHeaders, ...(options.headers || {}) };
+    const locale = localStorage.getItem(localeStorageKey);
+
+    if (locale) {
+        headers['X-Locale'] = locale;
+    }
 
     if (method !== 'GET') {
         await csrf();

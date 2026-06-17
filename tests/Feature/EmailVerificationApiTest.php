@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use Illuminate\Auth\Notifications\VerifyEmail;
+use App\Notifications\VerifyEmailNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
@@ -27,8 +27,28 @@ class EmailVerificationApiTest extends TestCase
 
         Notification::assertSentTo(
             User::query()->where('email', 'roman@example.com')->firstOrFail(),
-            VerifyEmail::class,
+            VerifyEmailNotification::class,
         );
+    }
+
+    public function test_registration_stores_requested_locale_for_verification_email(): void
+    {
+        Notification::fake();
+
+        $this
+            ->withHeader('X-Locale', 'en')
+            ->postJsonWithCsrf('/api/auth/register', [
+                'name' => 'Roman',
+                'email' => 'roman@example.com',
+                'password' => 'password',
+                'password_confirmation' => 'password',
+            ])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'roman@example.com',
+            'locale' => 'en',
+        ]);
     }
 
     public function test_authenticated_user_can_request_verification_notification(): void
@@ -43,7 +63,24 @@ class EmailVerificationApiTest extends TestCase
             ->assertAccepted()
             ->assertJsonPath('message', 'Verification link sent.');
 
-        Notification::assertSentTo($user, VerifyEmail::class);
+        Notification::assertSentTo($user, VerifyEmailNotification::class);
+    }
+
+    public function test_resending_verification_notification_updates_user_locale(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->unverified()->create(['locale' => 'ru']);
+
+        $this->actingAs($user);
+
+        $this
+            ->withHeader('X-Locale', 'en')
+            ->postJsonWithCsrf('/api/email/verification-notification')
+            ->assertAccepted();
+
+        $this->assertSame('en', $user->refresh()->locale);
+        Notification::assertSentTo($user, VerifyEmailNotification::class);
     }
 
     public function test_already_verified_user_gets_empty_response_when_requesting_verification_notification(): void

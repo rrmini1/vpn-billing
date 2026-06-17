@@ -24,6 +24,7 @@ class AuthController extends Controller
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
+        $attributes['locale'] = $this->requestLocale($request);
 
         $user = User::query()->create($attributes);
 
@@ -82,12 +83,16 @@ class AuthController extends Controller
 
     public function forgotPassword(Request $request): JsonResponse
     {
-        $request->validate([
+        $attributes = $request->validate([
             'email' => ['required', 'string', 'email'],
         ]);
 
+        User::query()
+            ->where('email', $attributes['email'])
+            ->update(['locale' => $this->requestLocale($request)]);
+
         $status = Password::sendResetLink(
-            $request->only('email'),
+            ['email' => $attributes['email']],
         );
 
         if ($status !== Password::RESET_LINK_SENT) {
@@ -138,6 +143,10 @@ class AuthController extends Controller
             return response()->json(status: 204);
         }
 
+        $request->user()->forceFill([
+            'locale' => $this->requestLocale($request),
+        ])->save();
+
         $request->user()->sendEmailVerificationNotification();
 
         return response()->json([
@@ -166,5 +175,10 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Email verified.',
         ]);
+    }
+
+    private function requestLocale(Request $request): string
+    {
+        return $request->header('X-Locale') === 'en' ? 'en' : 'ru';
     }
 }

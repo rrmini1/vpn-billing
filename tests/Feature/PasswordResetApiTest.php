@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use Illuminate\Auth\Notifications\ResetPassword;
+use App\Notifications\ResetPasswordNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
@@ -26,7 +26,77 @@ class PasswordResetApiTest extends TestCase
         ])->assertOk()
             ->assertJsonStructure(['message']);
 
-        Notification::assertSentTo($user, ResetPassword::class);
+        Notification::assertSentTo($user, ResetPasswordNotification::class);
+    }
+
+    public function test_reset_link_points_to_spa_reset_password_page(): void
+    {
+        config(['app.frontend_url' => 'https://app.cors-port.ru']);
+        Notification::fake();
+
+        $user = User::factory()->create(['email' => 'roman@example.com']);
+
+        $this->postJsonWithCsrf('/api/auth/forgot-password', [
+            'email' => 'roman@example.com',
+        ])->assertOk();
+
+        Notification::assertSentTo($user, ResetPasswordNotification::class, function (ResetPasswordNotification $notification) use ($user): bool {
+            $actionUrl = $notification->toMail($user)->actionUrl;
+
+            return str_starts_with($actionUrl, 'https://app.cors-port.ru/app/reset-password?')
+                && str_contains($actionUrl, 'email=roman%40example.com')
+                && str_contains($actionUrl, 'token=');
+        });
+    }
+
+    public function test_forgot_password_sends_russian_reset_email_for_russian_locale(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create([
+            'email' => 'roman@example.com',
+            'locale' => 'en',
+        ]);
+
+        $this
+            ->withHeader('X-Locale', 'ru')
+            ->postJsonWithCsrf('/api/auth/forgot-password', [
+                'email' => 'roman@example.com',
+            ])->assertOk();
+
+        $this->assertSame('ru', $user->refresh()->locale);
+
+        Notification::assertSentTo($user, ResetPasswordNotification::class, function (ResetPasswordNotification $notification) use ($user): bool {
+            $mail = $notification->toMail($user);
+
+            return $mail->subject === 'Сброс пароля'
+                && $mail->actionText === 'Сбросить пароль';
+        });
+    }
+
+    public function test_forgot_password_sends_english_reset_email_for_english_locale(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create([
+            'email' => 'roman@example.com',
+            'locale' => 'ru',
+        ]);
+
+        $this
+            ->withHeader('X-Locale', 'en')
+            ->postJsonWithCsrf('/api/auth/forgot-password', [
+                'email' => 'roman@example.com',
+            ])->assertOk();
+
+        $this->assertSame('en', $user->refresh()->locale);
+
+        Notification::assertSentTo($user, ResetPasswordNotification::class, function (ResetPasswordNotification $notification) use ($user): bool {
+            $mail = $notification->toMail($user);
+
+            return $mail->subject === 'Reset password'
+                && $mail->actionText === 'Reset password';
+        });
     }
 
     public function test_forgot_password_rejects_unknown_email(): void

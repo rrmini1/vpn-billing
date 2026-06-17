@@ -118,6 +118,11 @@ async function retryTelegramLogin() {
                     <v-form @submit.prevent="submitLogin">
                         <v-text-field v-model="loginForm.email" label="Email" type="email" autocomplete="email" />
                         <v-text-field v-model="loginForm.password" :label="t('auth.password')" type="password" autocomplete="current-password" />
+                        <div class="form-link">
+                            <v-btn :to="{ name: 'forgot-password' }" variant="text" size="small">
+                                {{ t('auth.forgotPassword') }}
+                            </v-btn>
+                        </div>
                         <v-btn type="submit" block color="primary" :loading="loading">
                             {{ t('auth.loginButton') }}
                         </v-btn>
@@ -184,5 +189,11 @@ async function retryTelegramLogin() {
     margin: 10px 0 14px;
     color: #61717d;
     line-height: 1.45;
+}
+
+.form-link {
+    display: flex;
+    justify-content: flex-end;
+    margin: -8px 0 8px;
 }
 </style>

@@ -73,6 +73,18 @@ class EmailVerificationApiTest extends TestCase
         $this->assertTrue($user->refresh()->hasVerifiedEmail());
     }
 
+    public function test_guest_can_verify_email_from_browser_link_and_is_redirected_to_spa(): void
+    {
+        config(['app.frontend_url' => 'https://app.cors-port.ru']);
+
+        $user = User::factory()->unverified()->create();
+
+        $this->get($this->verificationUrl($user))
+            ->assertRedirect('https://app.cors-port.ru/app/email-verified?status=success');
+
+        $this->assertTrue($user->refresh()->hasVerifiedEmail());
+    }
+
     public function test_email_verification_rejects_invalid_signature(): void
     {
         $user = User::factory()->unverified()->create();

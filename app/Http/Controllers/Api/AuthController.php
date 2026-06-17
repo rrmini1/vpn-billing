@@ -4,9 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Auth\Events\Verified;
 use Illuminate\Auth\Events\PasswordReset;
-use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -144,9 +145,23 @@ class AuthController extends Controller
         ], 202);
     }
 
-    public function verifyEmail(EmailVerificationRequest $request): JsonResponse
+    public function verifyEmail(Request $request, int $id, string $hash): JsonResponse|RedirectResponse
     {
-        $request->fulfill();
+        $user = User::query()->findOrFail($id);
+
+        if (! hash_equals($hash, sha1($user->getEmailForVerification()))) {
+            abort(403);
+        }
+
+        if (! $user->hasVerifiedEmail() && $user->markEmailAsVerified()) {
+            event(new Verified($user));
+        }
+
+        if (! $request->expectsJson()) {
+            return redirect()->to(
+                rtrim((string) config('app.frontend_url'), '/').'/app/email-verified?status=success',
+            );
+        }
 
         return response()->json([
             'message' => 'Email verified.',

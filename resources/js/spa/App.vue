@@ -11,7 +11,8 @@ const route = useRoute();
 const router = useRouter();
 
 const isAuthed = computed(() => Boolean(auth.state.user));
-const showShell = computed(() => auth.state.booted && isAuthed.value);
+const isPublicRoute = computed(() => Boolean(route.meta.public));
+const showShell = computed(() => auth.state.booted && isAuthed.value && !isPublicRoute.value);
 
 watch(locale, () => {
     document.title = t('appName');
@@ -22,7 +23,7 @@ onMounted(async () => {
 
     await auth.bootstrap();
 
-    if (!auth.state.user && route.name !== 'login') {
+    if (!auth.state.user && !route.meta.public) {
         await router.replace({ name: 'login' });
     }
 
@@ -38,7 +39,7 @@ onUnmounted(() => {
 async function handleUnauthorized() {
     auth.state.user = null;
 
-    if (router.currentRoute.value.name !== 'login') {
+    if (!router.currentRoute.value.meta.public) {
         await router.replace({ name: 'login' });
     }
 }
@@ -52,7 +53,9 @@ async function logout() {
 <template>
     <v-app>
         <v-main>
-            <div v-if="!auth.state.booted" class="app-loading">
+            <router-view v-if="isPublicRoute" />
+
+            <div v-else-if="!auth.state.booted" class="app-loading">
                 <v-progress-circular indeterminate color="primary" />
             </div>
 

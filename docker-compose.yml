@@ -68,6 +68,13 @@ services:
     networks:
       - vpn-billing
 
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    ports:
+      - "${MAILHOG_FORWARD_PORT:-8025}:8025"
+    networks:
+      - vpn-billing
+
   queue:
     build:
       context: .

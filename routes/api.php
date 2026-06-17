@@ -36,11 +36,11 @@ Route::prefix('auth')->group(function (): void {
 Route::middleware('auth:web')->prefix('email')->group(function (): void {
     Route::post('verification-notification', [AuthController::class, 'sendEmailVerificationNotification'])
         ->middleware('throttle:6,1');
-
-    Route::get('verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
-        ->middleware('signed')
-        ->name('verification.verify');
 });
+
+Route::get('email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
+    ->middleware('signed')
+    ->name('verification.verify');
 
 Route::middleware('auth:web')->prefix('subscriptions')->group(function (): void {
     Route::get('current', [SubscriptionController::class, 'current']);

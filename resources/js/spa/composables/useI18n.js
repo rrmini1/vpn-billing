@@ -35,6 +35,11 @@ const messages = {
             emailVerified: 'email ok',
             emailPending: 'email',
         },
+        emailVerified: {
+            title: 'Email подтвержден',
+            text: 'Адрес почты успешно подтвержден. Теперь можно вернуться в кабинет.',
+            action: 'Перейти в кабинет',
+        },
         subscription: {
             title: 'Подписка',
             emptyTitle: 'Нет активной подписки',
@@ -125,6 +130,11 @@ const messages = {
             fallbackName: 'Solutions',
             emailVerified: 'email ok',
             emailPending: 'email',
+        },
+        emailVerified: {
+            title: 'Email verified',
+            text: 'Your email address has been verified. You can return to your account.',
+            action: 'Go to account',
         },
         subscription: {
             title: 'Subscription',

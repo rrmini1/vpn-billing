@@ -242,4 +242,33 @@ class AdminApiTest extends TestCase
             'price_amount' => 29900,
         ]);
     }
+
+    public function test_admin_can_create_plan(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+
+        $this
+            ->actingAs($admin)
+            ->withSession(['_token' => 'test-csrf-token'])
+            ->withHeader('X-CSRF-TOKEN', 'test-csrf-token')
+            ->postJson('/api/admin/plans', [
+                'code' => 'family',
+                'name' => 'Семейный',
+                'traffic_limit_bytes' => 750 * 1024 * 1024 * 1024,
+                'price_amount' => 129900,
+                'currency' => 'RUB',
+                'is_active' => true,
+                'sort_order' => 50,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.code', 'family')
+            ->assertJsonPath('data.name', 'Семейный')
+            ->assertJsonPath('data.price_amount', 129900);
+
+        $this->assertDatabaseHas('plans', [
+            'code' => 'family',
+            'name' => 'Семейный',
+            'price_amount' => 129900,
+        ]);
+    }
 }

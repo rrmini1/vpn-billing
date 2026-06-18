@@ -29,6 +29,10 @@ export const billingApi = {
         body: payload,
     }),
     adminPlans: () => api('/api/admin/plans'),
+    createAdminPlan: (payload) => api('/api/admin/plans', {
+        method: 'POST',
+        body: payload,
+    }),
     updateAdminPlan: (planId, payload) => api(`/api/admin/plans/${planId}`, {
         method: 'PATCH',
         body: payload,

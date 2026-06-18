@@ -15,8 +15,10 @@ const users = ref([]);
 const plans = ref([]);
 const payments = ref([]);
 const planDrafts = reactive({});
+const newPlanDraft = reactive(defaultNewPlanDraft());
 const userLimitDrafts = reactive({});
 const savingPlanId = ref(null);
+const creatingPlan = ref(false);
 const savingUserLimitId = ref(null);
 
 const trafficFormatOptions = computed(() => ({
@@ -77,11 +79,32 @@ async function loadPlans() {
             sort_order: plan.sort_order,
         };
     });
+
+    if (!newPlanDraft.sort_order) {
+        newPlanDraft.sort_order = nextPlanSortOrder();
+    }
 }
 
 async function loadPayments() {
     const response = await billingApi.adminPayments({ per_page: 20 });
     payments.value = response.data;
+}
+
+async function createPlan() {
+    creatingPlan.value = true;
+    error.value = null;
+    message.value = null;
+
+    try {
+        await billingApi.createAdminPlan(planPayload(newPlanDraft));
+        message.value = t('admin.planCreated');
+        resetNewPlanDraft();
+        await Promise.all([loadPlans(), loadDashboard()]);
+    } catch (e) {
+        error.value = e.message;
+    } finally {
+        creatingPlan.value = false;
+    }
 }
 
 async function savePlan(plan) {
@@ -91,15 +114,7 @@ async function savePlan(plan) {
     message.value = null;
 
     try {
-        await billingApi.updateAdminPlan(plan.id, {
-            code: draft.code,
-            name: draft.name,
-            traffic_limit_bytes: gbToBytes(draft.traffic_gb),
-            price_amount: rubToMinor(draft.price_rub),
-            currency: draft.currency,
-            is_active: Boolean(draft.is_active),
-            sort_order: Number(draft.sort_order),
-        });
+        await billingApi.updateAdminPlan(plan.id, planPayload(draft));
         message.value = t('admin.saved');
         await Promise.all([loadPlans(), loadDashboard()]);
     } catch (e) {
@@ -150,6 +165,42 @@ function gbToBytes(gb) {
 
 function rubToMinor(value) {
     return Math.round(Number(value) * 100);
+}
+
+function planPayload(draft) {
+    return {
+        code: String(draft.code || '').trim(),
+        name: String(draft.name || '').trim(),
+        traffic_limit_bytes: gbToBytes(draft.traffic_gb),
+        price_amount: rubToMinor(draft.price_rub),
+        currency: String(draft.currency || 'RUB').trim().toUpperCase(),
+        is_active: Boolean(draft.is_active),
+        sort_order: Number(draft.sort_order),
+    };
+}
+
+function defaultNewPlanDraft() {
+    return {
+        code: '',
+        name: '',
+        traffic_gb: 50,
+        price_rub: 0,
+        currency: 'RUB',
+        is_active: true,
+        sort_order: 10,
+    };
+}
+
+function resetNewPlanDraft() {
+    Object.assign(newPlanDraft, defaultNewPlanDraft(), {
+        sort_order: nextPlanSortOrder(),
+    });
+}
+
+function nextPlanSortOrder() {
+    const maxSortOrder = plans.value.reduce((max, plan) => Math.max(max, Number(plan.sort_order || 0)), 0);
+
+    return maxSortOrder + 10;
 }
 
 function money(amount, currency = 'RUB') {
@@ -306,6 +357,54 @@ function money(amount, currency = 'RUB') {
                 </v-window-item>
 
                 <v-window-item value="plans">
+                    <v-card class="plan-create-card pa-4" border>
+                        <div class="section-title">{{ t('admin.newPlan') }}</div>
+                        <div class="plan-edit-grid">
+                            <v-text-field v-model="newPlanDraft.code" label="Code" density="compact" variant="outlined" />
+                            <v-text-field v-model="newPlanDraft.name" label="Name" density="compact" variant="outlined" />
+                            <v-text-field
+                                v-model.number="newPlanDraft.traffic_gb"
+                                :label="t('admin.trafficGb')"
+                                type="number"
+                                min="1"
+                                step="1"
+                                density="compact"
+                                variant="outlined"
+                            />
+                            <v-text-field
+                                v-model.number="newPlanDraft.price_rub"
+                                :label="t('admin.priceRub')"
+                                type="number"
+                                min="0"
+                                step="1"
+                                density="compact"
+                                variant="outlined"
+                            />
+                            <v-text-field v-model="newPlanDraft.currency" label="Currency" density="compact" variant="outlined" />
+                            <v-text-field
+                                v-model.number="newPlanDraft.sort_order"
+                                :label="t('admin.sortOrder')"
+                                type="number"
+                                min="0"
+                                step="1"
+                                density="compact"
+                                variant="outlined"
+                            />
+                        </div>
+                        <div class="plan-actions">
+                            <v-switch
+                                v-model="newPlanDraft.is_active"
+                                :label="t('admin.active')"
+                                color="primary"
+                                density="compact"
+                                hide-details
+                            />
+                            <v-btn color="primary" prepend-icon="mdi-plus" :loading="creatingPlan" @click="createPlan">
+                                {{ t('admin.createPlan') }}
+                            </v-btn>
+                        </div>
+                    </v-card>
+
                     <div class="plan-list">
                         <v-card v-for="plan in plans" :key="plan.id" class="pa-4" border>
                             <div class="plan-edit-grid">
@@ -402,6 +501,17 @@ h1 {
     display: grid;
     gap: 12px;
     margin-top: 12px;
+}
+
+.plan-create-card {
+    margin-top: 12px;
+}
+
+.section-title {
+    margin-bottom: 12px;
+    color: #18252f;
+    font-size: 16px;
+    font-weight: 600;
 }
 
 .stats-grid {

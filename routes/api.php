@@ -20,6 +20,11 @@ Route::get('plans', [PlanController::class, 'index']);
 Route::middleware('auth:web')->get('profile', [ProfileController::class, 'show']);
 Route::middleware('auth:web')->get('traffic', [TrafficController::class, 'show']);
 
+Route::prefix('account/email')->group(function (): void {
+    Route::middleware('auth:web')->post('start', [AccountMergeController::class, 'startEmailFlow']);
+    Route::post('complete', [AccountMergeController::class, 'completeEmailAttach']);
+});
+
 Route::prefix('account/merge')->group(function (): void {
     Route::middleware('auth:web')->post('email/start', [AccountMergeController::class, 'startEmailMerge']);
     Route::get('email/confirm', [AccountMergeController::class, 'confirmEmailMerge']);

@@ -5,9 +5,13 @@ export const billingApi = {
     plans: () => api('/api/plans'),
     payments: () => api('/api/payments'),
     traffic: () => api('/api/traffic'),
-    startEmailMerge: (email) => api('/api/account/merge/email/start', {
+    startEmailMerge: (email) => api('/api/account/email/start', {
         method: 'POST',
         body: { email },
+    }),
+    completeEmailAttach: (payload) => api('/api/account/email/complete', {
+        method: 'POST',
+        body: payload,
     }),
     currentSubscription: () => api('/api/subscriptions/current'),
     trial: () => api('/api/subscriptions/trial', { method: 'POST' }),

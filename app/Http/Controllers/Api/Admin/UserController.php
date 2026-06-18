@@ -22,6 +22,7 @@ class UserController extends Controller
         $users = User::query()
             ->withCount(['payments', 'subscriptions'])
             ->with([
+                'mergedIntoUser',
                 'subscriptions' => fn ($query) => $query
                     ->where('status', Subscription::STATUS_ACTIVE)
                     ->with('marzbanUser')
@@ -73,6 +74,7 @@ class UserController extends Controller
 
         $user->loadCount(['payments', 'subscriptions']);
         $user->load([
+            'mergedIntoUser',
             'subscriptions' => fn ($query) => $query
                 ->where('status', Subscription::STATUS_ACTIVE)
                 ->with('marzbanUser')

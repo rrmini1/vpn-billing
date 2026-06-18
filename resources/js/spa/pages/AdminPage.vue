@@ -222,12 +222,36 @@ function money(amount, currency = 'RUB') {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="user in users" :key="user.id">
+                                <tr v-for="user in users" :key="user.id" :class="{ 'merged-row': user.merge?.is_merged }">
                                     <td>
-                                        <strong>{{ user.name }}</strong>
-                                        <div class="meta">{{ user.email || t('common.notSpecified') }}</div>
+                                        <div class="user-cell-title">
+                                            <strong>{{ user.name }}</strong>
+                                            <v-chip
+                                                v-if="user.merge?.is_merged"
+                                                size="x-small"
+                                                color="default"
+                                                variant="tonal"
+                                            >
+                                                {{ t('admin.merged') }}
+                                            </v-chip>
+                                        </div>
+                                        <template v-if="user.merge?.is_merged">
+                                            <div class="meta">
+                                                {{ t('admin.mergedInto') }}
+                                                #{{ user.merge.merged_into_user?.id }}
+                                                {{ user.merge.merged_into_user?.email || user.merge.merged_into_user?.name || '' }}
+                                            </div>
+                                        </template>
+                                        <template v-else>
+                                            <div class="meta">{{ user.email || t('common.notSpecified') }}</div>
+                                        </template>
                                     </td>
-                                    <td>{{ user.telegram.username ? `@${user.telegram.username}` : '—' }}</td>
+                                    <td>
+                                        <template v-if="user.merge?.is_merged">
+                                            <span class="meta">{{ t('admin.merged') }}</span>
+                                        </template>
+                                        <template v-else>{{ user.telegram.username ? `@${user.telegram.username}` : '—' }}</template>
+                                    </td>
                                     <td>
                                         <template v-if="user.current_subscription">
                                             {{ planName(user.current_subscription.plan) }}
@@ -402,6 +426,17 @@ h1 {
     justify-content: space-between;
     align-items: center;
     gap: 12px;
+}
+
+.merged-row {
+    opacity: 0.58;
+    background: #f4f6f8;
+}
+
+.user-cell-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .limit-edit {

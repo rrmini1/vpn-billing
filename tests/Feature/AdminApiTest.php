@@ -132,6 +132,34 @@ class AdminApiTest extends TestCase
             ->assertJsonPath('data.0.telegram.username', 'telegram_client');
     }
 
+    public function test_admin_users_list_marks_merged_users(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $target = User::factory()->create([
+            'name' => 'Roman Main',
+            'email' => 'roman@example.com',
+            'email_verified_at' => now(),
+        ]);
+        $source = User::factory()->create([
+            'name' => 'Telegram Duplicate',
+            'email' => 'telegram-123456@telegram.local',
+            'telegram_id' => null,
+            'merged_into_user_id' => $target->id,
+            'merged_at' => now(),
+        ]);
+
+        $this
+            ->actingAs($admin)
+            ->getJson('/api/admin/users?search=Telegram Duplicate')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $source->id)
+            ->assertJsonPath('data.0.email', null)
+            ->assertJsonPath('data.0.merge.is_merged', true)
+            ->assertJsonPath('data.0.merge.merged_into_user.id', $target->id)
+            ->assertJsonPath('data.0.merge.merged_into_user.email', 'roman@example.com');
+    }
+
     public function test_admin_can_update_user_marzban_limit(): void
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);

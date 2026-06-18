@@ -29,6 +29,20 @@ class AdminUserResource extends JsonResource
             'email' => $this->displayEmail(),
             'role' => $this->role,
             'email_verified' => $this->hasVerifiedEmail(),
+            'merge' => [
+                'is_merged' => $this->isMerged(),
+                'merged_at' => $this->merged_at?->toISOString(),
+                'merged_into_user' => $this->whenLoaded('mergedIntoUser', fn (): ?array => $this->mergedIntoUser ? [
+                    'id' => $this->mergedIntoUser->id,
+                    'name' => $this->mergedIntoUser->name,
+                    'email' => $this->mergedIntoUser->displayEmail(),
+                    'telegram' => [
+                        'linked' => $this->mergedIntoUser->telegram_id !== null,
+                        'id' => $this->mergedIntoUser->telegram_id,
+                        'username' => $this->mergedIntoUser->telegram_username,
+                    ],
+                ] : null),
+            ],
             'telegram' => [
                 'linked' => $this->telegram_id !== null,
                 'id' => $this->telegram_id,

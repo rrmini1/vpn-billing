@@ -58,7 +58,7 @@ const messages = {
             linkTelegramTitle: 'Привязать Telegram',
             linkTelegramText: 'После привязки можно будет входить через Telegram и получать уведомления.',
             linkTelegramButton: 'Привязать Telegram',
-            openTelegramBot: 'Открыть Telegram-бота',
+            openTelegramBot: 'Открыть телеграм бот',
             openTelegramToLink: 'Откройте кабинет через Telegram-бота и нажмите эту кнопку еще раз.',
             telegramLinked: 'Telegram привязан',
         },

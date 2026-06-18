@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\TelegramLinkToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
@@ -91,6 +92,62 @@ class TelegramAuthApiTest extends TestCase
         ]);
     }
 
+    public function test_authenticated_verified_user_can_create_telegram_link_token(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+            'telegram_id' => null,
+        ]);
+
+        $this->actingAs($user);
+
+        $response = $this
+            ->postJsonWithCsrf('/api/auth/telegram/link-token')
+            ->assertCreated()
+            ->assertJsonStructure(['bot_url', 'expires_at']);
+
+        $this->assertStringStartsWith(
+            'https://t.me/CorsPortMain_bot?start=link_telegram_',
+            $response->json('bot_url'),
+        );
+        $this->assertDatabaseHas('telegram_link_tokens', [
+            'user_id' => $user->id,
+            'confirmed_at' => null,
+        ]);
+    }
+
+    public function test_telegram_link_token_confirmation_links_telegram_to_email_user(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'roman@example.com',
+            'email_verified_at' => now(),
+            'telegram_id' => null,
+        ]);
+        [$token] = TelegramLinkToken::issue($user);
+        $plainToken = $this->plainTokenFromStoredToken($token);
+
+        $this
+            ->postJsonWithCsrf('/api/auth/telegram/link-token/confirm', [
+                'token' => $plainToken,
+                'init_data' => $this->telegramInitData([
+                    'id' => 123456,
+                    'username' => 'roman',
+                    'first_name' => 'Roman',
+                ]),
+            ])
+            ->assertOk()
+            ->assertJsonPath('user.id', $user->id)
+            ->assertJsonPath('user.telegram_id', 123456);
+
+        $this->assertAuthenticatedAs($user->refresh());
+        $this->assertDatabaseHas('users', [
+            'id' => $user->id,
+            'telegram_id' => 123456,
+            'telegram_username' => 'roman',
+        ]);
+        $this->assertNotNull($token->refresh()->confirmed_at);
+    }
+
     public function test_authenticated_user_cannot_link_telegram_account_used_by_another_user(): void
     {
         User::factory()->create(['telegram_id' => 123456]);
@@ -140,5 +197,16 @@ class TelegramAuthApiTest extends TestCase
             ->withSession(['_token' => 'test-csrf-token'])
             ->withHeader('X-CSRF-TOKEN', 'test-csrf-token')
             ->postJson($uri, $data);
+    }
+
+    private function plainTokenFromStoredToken(TelegramLinkToken $token): string
+    {
+        $plainToken = 'test-link-token';
+
+        $token->forceFill([
+            'token_hash' => TelegramLinkToken::hashToken($plainToken),
+        ])->save();
+
+        return $plainToken;
     }
 }

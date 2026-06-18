@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\TelegramLinkToken;
 use App\Models\User;
+use App\Services\Accounts\AccountMergeService;
 use App\Services\Telegram\TelegramWebAppAuthenticator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -69,6 +71,91 @@ class TelegramAuthController extends Controller
 
         return response()->json([
             'user' => $request->user()->refresh(),
+        ]);
+    }
+
+    public function createLinkToken(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        if (! $user->hasVerifiedEmail()) {
+            throw ValidationException::withMessages([
+                'email' => 'Email must be verified before linking Telegram.',
+            ]);
+        }
+
+        if ($user->telegram_id) {
+            throw ValidationException::withMessages([
+                'telegram' => 'Telegram is already linked.',
+            ]);
+        }
+
+        [$token, $plainToken] = TelegramLinkToken::issue($user);
+        $startPayload = 'link_telegram_'.$plainToken;
+        $botUsername = (string) config('telegram.bot_username', 'CorsPortMain_bot');
+
+        return response()->json([
+            'bot_url' => 'https://t.me/'.ltrim($botUsername, '@').'?start='.$startPayload,
+            'expires_at' => $token->expires_at?->toISOString(),
+        ], 201);
+    }
+
+    public function linkWithToken(
+        Request $request,
+        TelegramWebAppAuthenticator $telegram,
+        AccountMergeService $mergeService,
+    ): JsonResponse {
+        $attributes = $request->validate([
+            'token' => ['required', 'string'],
+            'init_data' => ['required', 'string'],
+        ]);
+
+        $linkToken = TelegramLinkToken::query()
+            ->with('user')
+            ->where('token_hash', TelegramLinkToken::hashToken($attributes['token']))
+            ->first();
+
+        if (! $linkToken || ! $linkToken->isConfirmable()) {
+            throw ValidationException::withMessages([
+                'token' => 'Telegram link token is invalid.',
+            ]);
+        }
+
+        /** @var User $target */
+        $target = $linkToken->user;
+
+        if (! $target->hasVerifiedEmail() || $target->telegram_id) {
+            throw ValidationException::withMessages([
+                'token' => 'Telegram link token is invalid.',
+            ]);
+        }
+
+        $telegramUser = $telegram->validate($attributes['init_data']);
+        $existingUser = User::query()
+            ->where('telegram_id', $telegramUser['id'])
+            ->first();
+
+        if ($existingUser && $existingUser->isNot($target)) {
+            if (! $existingUser->hasTechnicalTelegramEmail()) {
+                throw ValidationException::withMessages([
+                    'init_data' => 'This Telegram account is already linked to another user.',
+                ]);
+            }
+
+            $mergeService->mergeTelegramAccountIntoVerifiedEmailAccount($existingUser, $target);
+            $target->refresh();
+        } else {
+            $target->forceFill($this->userAttributes($telegramUser))->save();
+        }
+
+        $linkToken->markConfirmed();
+
+        Auth::guard('web')->login($target);
+        $request->session()->regenerate();
+
+        return response()->json([
+            'user' => $target->refresh(),
         ]);
     }
 

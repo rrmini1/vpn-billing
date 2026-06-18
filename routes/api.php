@@ -36,7 +36,10 @@ Route::prefix('auth')->group(function (): void {
         Route::post('logout', [AuthController::class, 'logout']);
         Route::get('me', [AuthController::class, 'me']);
         Route::post('telegram/link', [TelegramAuthController::class, 'link']);
+        Route::post('telegram/link-token', [TelegramAuthController::class, 'createLinkToken']);
     });
+
+    Route::post('telegram/link-token/confirm', [TelegramAuthController::class, 'linkWithToken']);
 });
 
 Route::middleware('auth:web')->prefix('email')->group(function (): void {

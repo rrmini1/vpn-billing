@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { Check, MailPlus } from '@lucide/vue';
 import { authApi } from '../api/auth';
 import { billingApi } from '../api/billing';
@@ -10,6 +11,8 @@ import { useTelegram } from '../composables/useTelegram';
 
 const { t } = useI18n();
 const telegram = useTelegram();
+const route = useRoute();
+const router = useRouter();
 const profile = ref(null);
 const traffic = ref(null);
 const loading = ref(true);
@@ -21,7 +24,6 @@ const error = ref(null);
 const message = ref(null);
 const isTelegramOnly = computed(() => profile.value?.user?.telegram?.linked && !profile.value?.user?.email);
 const canLinkTelegram = computed(() => profile.value?.user?.email && !profile.value?.user?.telegram?.linked);
-const telegramBotUrl = 'https://t.me/CorsPortMain_bot';
 
 async function load() {
     loading.value = true;
@@ -78,7 +80,15 @@ async function linkTelegram() {
     message.value = null;
 
     if (!telegram.isTelegramMiniApp || !telegram.initData) {
-        message.value = t('dashboard.openTelegramToLink');
+        linkingTelegram.value = true;
+
+        try {
+            const response = await authApi.createTelegramLinkToken();
+            window.location.href = response.bot_url;
+        } catch (e) {
+            error.value = e.message;
+            linkingTelegram.value = false;
+        }
 
         return;
     }
@@ -96,7 +106,41 @@ async function linkTelegram() {
     }
 }
 
-onMounted(load);
+async function confirmTelegramLinkToken(token) {
+    if (!telegram.isTelegramMiniApp || !telegram.initData) {
+        return false;
+    }
+
+    linkingTelegram.value = true;
+    error.value = null;
+    message.value = null;
+
+    try {
+        await authApi.confirmTelegramLinkToken(token, telegram.initData);
+        await router.replace({ name: 'dashboard' });
+        message.value = t('dashboard.telegramLinked');
+        await load();
+        return true;
+    } catch (e) {
+        error.value = e.message;
+        loading.value = false;
+        return true;
+    } finally {
+        linkingTelegram.value = false;
+    }
+}
+
+onMounted(async () => {
+    const linkToken = route.query.link_token;
+
+    if (typeof linkToken === 'string' && linkToken !== '') {
+        if (await confirmTelegramLinkToken(linkToken)) {
+            return;
+        }
+    }
+
+    await load();
+});
 </script>
 
 <template>
@@ -173,23 +217,12 @@ onMounted(load);
                 </div>
                 <div class="account-link-actions">
                     <v-btn
-                        v-if="!telegram.isTelegramMiniApp"
-                        :href="telegramBotUrl"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        color="primary"
-                        variant="tonal"
-                    >
-                        {{ t('dashboard.openTelegramBot') }}
-                    </v-btn>
-                    <v-btn
-                        v-else
                         color="primary"
                         variant="tonal"
                         :loading="linkingTelegram"
                         @click="linkTelegram"
                     >
-                        {{ t('dashboard.linkTelegramButton') }}
+                        {{ telegram.isTelegramMiniApp ? t('dashboard.linkTelegramButton') : t('dashboard.openTelegramBot') }}
                     </v-btn>
                 </div>
             </v-card>

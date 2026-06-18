@@ -33,7 +33,7 @@ class PaymentResource extends JsonResource
             'user' => $this->whenLoaded('user', fn (): array => [
                 'id' => $this->user->id,
                 'name' => $this->user->name,
-                'email' => $this->user->email,
+                'email' => $this->user->displayEmail(),
             ]),
             'subscription_id' => $this->subscription_id,
             'expires_at' => $this->expires_at?->toISOString(),

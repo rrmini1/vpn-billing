@@ -17,6 +17,10 @@ export const authApi = {
         method: 'POST',
         body: { init_data: initData },
     }),
+    telegramLink: (initData) => api('/api/auth/telegram/link', {
+        method: 'POST',
+        body: { init_data: initData },
+    }),
     sendEmailVerification: () => api('/api/email/verification-notification', {
         method: 'POST',
     }),

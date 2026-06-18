@@ -20,6 +20,8 @@ class MarzbanUser extends Model
 {
     public const STATUS_ACTIVE = 'active';
 
+    public const STATUS_MERGED = 'merged';
+
     protected function casts(): array
     {
         return [

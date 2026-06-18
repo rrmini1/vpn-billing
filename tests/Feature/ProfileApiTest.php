@@ -46,6 +46,23 @@ class ProfileApiTest extends TestCase
             ->assertJsonMissingPath('data.user.password');
     }
 
+    public function test_profile_hides_technical_telegram_email(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'telegram-123456789@telegram.local',
+            'telegram_id' => 123456789,
+            'telegram_username' => 'romanvpn',
+        ]);
+
+        $this
+            ->actingAs($user)
+            ->getJson('/api/profile')
+            ->assertOk()
+            ->assertJsonPath('data.user.email', null)
+            ->assertJsonPath('data.user.telegram.linked', true)
+            ->assertJsonPath('data.user.telegram.username', 'romanvpn');
+    }
+
     public function test_profile_includes_current_subscription(): void
     {
         $user = User::factory()->create([

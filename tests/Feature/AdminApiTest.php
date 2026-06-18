@@ -113,6 +113,25 @@ class AdminApiTest extends TestCase
             ->assertJsonPath('data.0.current_subscription.marzban_user.data_limit_bytes', 53687091200);
     }
 
+    public function test_admin_users_list_hides_technical_telegram_email(): void
+    {
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        User::factory()->create([
+            'name' => 'Telegram Client',
+            'email' => 'telegram-123456789@telegram.local',
+            'telegram_id' => 123456789,
+            'telegram_username' => 'telegram_client',
+        ]);
+
+        $this
+            ->actingAs($admin)
+            ->getJson('/api/admin/users?search=telegram_client')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.email', null)
+            ->assertJsonPath('data.0.telegram.username', 'telegram_client');
+    }
+
     public function test_admin_can_update_user_marzban_limit(): void
     {
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);

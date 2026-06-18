@@ -7,6 +7,9 @@ const supportedLocales = ['ru', 'en'];
 const messages = {
     ru: {
         appName: 'Cors Port Solutions',
+        common: {
+            notSpecified: 'не указан',
+        },
         navigation: {
             dashboard: 'Кабинет',
             plans: 'Тарифы',
@@ -48,11 +51,28 @@ const messages = {
             emailPending: 'email',
             emailVerificationSent: 'Письмо отправлено',
             resendVerificationEmail: 'выслать повторное письмо',
+            addEmailTitle: 'Добавить email',
+            addEmailText: 'Укажите подтвержденный email-аккаунт, чтобы объединить его с Telegram-входом.',
+            sendMergeEmail: 'Отправить письмо',
+            mergeEmailSent: 'Письмо для подтверждения объединения отправлено',
+            linkTelegramTitle: 'Привязать Telegram',
+            linkTelegramText: 'После привязки можно будет входить через Telegram и получать уведомления.',
+            linkTelegramButton: 'Привязать Telegram',
+            openTelegramBot: 'Открыть Telegram-бота',
+            openTelegramToLink: 'Откройте кабинет через Telegram-бота и нажмите эту кнопку еще раз.',
+            telegramLinked: 'Telegram привязан',
         },
         emailVerified: {
             title: 'Email подтвержден',
             text: 'Адрес почты успешно подтвержден. Теперь можно вернуться в кабинет.',
             action: 'Перейти в кабинет',
+        },
+        accountMerged: {
+            successTitle: 'Аккаунты объединены',
+            successText: 'Telegram-аккаунт успешно привязан к email-аккаунту. Теперь можно войти привычным способом.',
+            invalidTitle: 'Ссылка недействительна',
+            invalidText: 'Ссылка объединения устарела или уже была использована.',
+            action: 'Продолжить',
         },
         subscription: {
             title: 'Подписка',
@@ -122,6 +142,9 @@ const messages = {
     },
     en: {
         appName: 'Cors Port Solutions',
+        common: {
+            notSpecified: 'Not specified',
+        },
         navigation: {
             dashboard: 'Account',
             plans: 'Plans',
@@ -163,11 +186,28 @@ const messages = {
             emailPending: 'email',
             emailVerificationSent: 'Email sent',
             resendVerificationEmail: 'send verification email again',
+            addEmailTitle: 'Add email',
+            addEmailText: 'Enter a verified email account to merge it with your Telegram login.',
+            sendMergeEmail: 'Send email',
+            mergeEmailSent: 'Account merge confirmation email has been sent',
+            linkTelegramTitle: 'Link Telegram',
+            linkTelegramText: 'After linking, you can sign in with Telegram and receive notifications.',
+            linkTelegramButton: 'Link Telegram',
+            openTelegramBot: 'Open Telegram bot',
+            openTelegramToLink: 'Open the account from the Telegram bot and press this button again.',
+            telegramLinked: 'Telegram linked',
         },
         emailVerified: {
             title: 'Email verified',
             text: 'Your email address has been verified. You can return to your account.',
             action: 'Go to account',
+        },
+        accountMerged: {
+            successTitle: 'Accounts merged',
+            successText: 'Your Telegram account has been linked to your email account. You can continue using either sign-in method.',
+            invalidTitle: 'Invalid link',
+            invalidText: 'This merge link has expired or has already been used.',
+            action: 'Continue',
         },
         subscription: {
             title: 'Subscription',

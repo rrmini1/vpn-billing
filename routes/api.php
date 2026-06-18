@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\AccountMergeController;
 use App\Http\Controllers\Api\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Api\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Api\Admin\PlanController as AdminPlanController;
@@ -18,6 +19,11 @@ Route::get('plans', [PlanController::class, 'index']);
 
 Route::middleware('auth:web')->get('profile', [ProfileController::class, 'show']);
 Route::middleware('auth:web')->get('traffic', [TrafficController::class, 'show']);
+
+Route::prefix('account/merge')->group(function (): void {
+    Route::middleware('auth:web')->post('email/start', [AccountMergeController::class, 'startEmailMerge']);
+    Route::get('email/confirm', [AccountMergeController::class, 'confirmEmailMerge']);
+});
 
 Route::prefix('auth')->group(function (): void {
     Route::post('register', [AuthController::class, 'register']);

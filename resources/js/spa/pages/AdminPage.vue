@@ -225,7 +225,7 @@ function money(amount, currency = 'RUB') {
                                 <tr v-for="user in users" :key="user.id">
                                     <td>
                                         <strong>{{ user.name }}</strong>
-                                        <div class="meta">{{ user.email }}</div>
+                                        <div class="meta">{{ user.email || t('common.notSpecified') }}</div>
                                     </td>
                                     <td>{{ user.telegram.username ? `@${user.telegram.username}` : '—' }}</td>
                                     <td>
@@ -339,7 +339,7 @@ function money(amount, currency = 'RUB') {
                             </thead>
                             <tbody>
                                 <tr v-for="payment in payments" :key="payment.id">
-                                    <td>{{ payment.user?.email || '—' }}</td>
+                                    <td>{{ payment.user?.email || t('common.notSpecified') }}</td>
                                     <td>{{ money(payment.amount, payment.currency) }}</td>
                                     <td><v-chip size="small" color="primary" variant="tonal">{{ payment.status }}</v-chip></td>
                                     <td>

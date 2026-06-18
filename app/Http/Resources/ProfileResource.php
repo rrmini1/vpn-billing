@@ -19,7 +19,7 @@ class ProfileResource extends JsonResource
             'user' => [
                 'id' => $this->id,
                 'name' => $this->name,
-                'email' => $this->email,
+                'email' => $this->displayEmail(),
                 'role' => $this->role,
                 'locale' => $this->locale,
                 'email_verified' => $this->hasVerifiedEmail(),

@@ -9,6 +9,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -19,6 +20,8 @@ use Laravel\Sanctum\HasApiTokens;
     'email',
     'password',
     'role',
+    'merged_into_user_id',
+    'merged_at',
     'locale',
     'telegram_id',
     'telegram_username',
@@ -47,6 +50,7 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'merged_at' => 'datetime',
             'telegram_auth_date' => 'datetime',
         ];
     }
@@ -75,9 +79,33 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Payment::class);
     }
 
+    /**
+     * @return BelongsTo<User, User>
+     */
+    public function mergedIntoUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'merged_into_user_id');
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === self::ROLE_ADMIN;
+    }
+
+    public function isMerged(): bool
+    {
+        return $this->merged_into_user_id !== null;
+    }
+
+    public function hasTechnicalTelegramEmail(): bool
+    {
+        return str_starts_with($this->email, 'telegram-')
+            && str_ends_with($this->email, '@telegram.local');
+    }
+
+    public function displayEmail(): ?string
+    {
+        return $this->hasTechnicalTelegramEmail() ? null : $this->email;
     }
 
     public function sendEmailVerificationNotification()

@@ -1,19 +1,27 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { Check, MailPlus } from '@lucide/vue';
 import { authApi } from '../api/auth';
 import { billingApi } from '../api/billing';
 import SubscriptionCard from '../components/SubscriptionCard.vue';
 import TrafficCard from '../components/TrafficCard.vue';
 import { useI18n } from '../composables/useI18n';
+import { useTelegram } from '../composables/useTelegram';
 
 const { t } = useI18n();
+const telegram = useTelegram();
 const profile = ref(null);
 const traffic = ref(null);
 const loading = ref(true);
 const resendingVerification = ref(false);
+const startingEmailMerge = ref(false);
+const linkingTelegram = ref(false);
+const mergeEmail = ref('');
 const error = ref(null);
 const message = ref(null);
+const isTelegramOnly = computed(() => profile.value?.user?.telegram?.linked && !profile.value?.user?.email);
+const canLinkTelegram = computed(() => profile.value?.user?.email && !profile.value?.user?.telegram?.linked);
+const telegramBotUrl = 'https://t.me/CorsPortMain_bot';
 
 async function load() {
     loading.value = true;
@@ -49,6 +57,45 @@ async function resendVerificationEmail() {
     }
 }
 
+async function startEmailMerge() {
+    startingEmailMerge.value = true;
+    error.value = null;
+    message.value = null;
+
+    try {
+        await billingApi.startEmailMerge(mergeEmail.value);
+        message.value = t('dashboard.mergeEmailSent');
+        mergeEmail.value = '';
+    } catch (e) {
+        error.value = e.message;
+    } finally {
+        startingEmailMerge.value = false;
+    }
+}
+
+async function linkTelegram() {
+    error.value = null;
+    message.value = null;
+
+    if (!telegram.isTelegramMiniApp || !telegram.initData) {
+        message.value = t('dashboard.openTelegramToLink');
+
+        return;
+    }
+
+    linkingTelegram.value = true;
+
+    try {
+        await authApi.telegramLink(telegram.initData);
+        message.value = t('dashboard.telegramLinked');
+        await load();
+    } catch (e) {
+        error.value = e.message;
+    } finally {
+        linkingTelegram.value = false;
+    }
+}
+
 onMounted(load);
 </script>
 
@@ -65,7 +112,7 @@ onMounted(load);
                     :color="profile?.user?.email_verified ? 'success' : 'warning'"
                     variant="tonal"
                 >
-                    <span class="email-chip__text">{{ t('dashboard.emailPending') }}: {{ profile?.user?.email || '—' }}</span>
+                    <span class="email-chip__text">{{ t('dashboard.emailPending') }}: {{ profile?.user?.email || t('common.notSpecified') }}</span>
                     <Check v-if="profile?.user?.email_verified" :size="16" />
                 </v-chip>
                 <v-tooltip v-if="profile && !profile.user.email_verified" location="bottom">
@@ -94,6 +141,58 @@ onMounted(load);
         <v-skeleton-loader v-if="loading" type="card, card" />
 
         <template v-else>
+            <v-card v-if="isTelegramOnly" class="account-link-card pa-4" border>
+                <div>
+                    <div class="account-link-title">{{ t('dashboard.addEmailTitle') }}</div>
+                    <p>{{ t('dashboard.addEmailText') }}</p>
+                </div>
+                <form class="account-link-form" @submit.prevent="startEmailMerge">
+                    <v-text-field
+                        v-model="mergeEmail"
+                        density="compact"
+                        label="Email"
+                        type="email"
+                        autocomplete="email"
+                        variant="outlined"
+                        hide-details
+                    />
+                    <v-btn
+                        color="primary"
+                        type="submit"
+                        :loading="startingEmailMerge"
+                        :disabled="!mergeEmail"
+                    >
+                        {{ t('dashboard.sendMergeEmail') }}
+                    </v-btn>
+                </form>
+            </v-card>
+            <v-card v-if="canLinkTelegram" class="account-link-card pa-4" border>
+                <div>
+                    <div class="account-link-title">{{ t('dashboard.linkTelegramTitle') }}</div>
+                    <p>{{ t('dashboard.linkTelegramText') }}</p>
+                </div>
+                <div class="account-link-actions">
+                    <v-btn
+                        v-if="!telegram.isTelegramMiniApp"
+                        :href="telegramBotUrl"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        color="primary"
+                        variant="tonal"
+                    >
+                        {{ t('dashboard.openTelegramBot') }}
+                    </v-btn>
+                    <v-btn
+                        v-else
+                        color="primary"
+                        variant="tonal"
+                        :loading="linkingTelegram"
+                        @click="linkTelegram"
+                    >
+                        {{ t('dashboard.linkTelegramButton') }}
+                    </v-btn>
+                </div>
+            </v-card>
             <SubscriptionCard :subscription="profile?.current_subscription" />
             <TrafficCard :traffic="traffic" />
         </template>
@@ -143,5 +242,55 @@ h1 {
 
 .email-chip__text {
     overflow-wrap: anywhere;
+}
+
+.account-link-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 420px);
+    align-items: center;
+    gap: 14px;
+}
+
+.account-link-title {
+    color: #18252f;
+    font-weight: 700;
+}
+
+.account-link-card p {
+    margin: 4px 0 0;
+    color: #61717d;
+    font-size: 14px;
+}
+
+.account-link-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+}
+
+.account-link-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+@media (max-width: 720px) {
+    .page-title,
+    .account-link-card,
+    .account-link-form {
+        grid-template-columns: 1fr;
+    }
+
+    .page-title {
+        display: grid;
+    }
+
+    .account-link-actions {
+        justify-content: stretch;
+    }
+
+    .account-link-actions :deep(.v-btn) {
+        width: 100%;
+    }
 }
 </style>

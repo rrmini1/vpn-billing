@@ -5,6 +5,10 @@ export const billingApi = {
     plans: () => api('/api/plans'),
     payments: () => api('/api/payments'),
     traffic: () => api('/api/traffic'),
+    startEmailMerge: (email) => api('/api/account/merge/email/start', {
+        method: 'POST',
+        body: { email },
+    }),
     currentSubscription: () => api('/api/subscriptions/current'),
     trial: () => api('/api/subscriptions/trial', { method: 'POST' }),
     createPayment: (planCode) => api('/api/payments', {

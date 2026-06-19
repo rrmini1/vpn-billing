@@ -30,12 +30,13 @@ class TelegramAuthController extends Controller
             ->first();
 
         if (! $user) {
-            $user = User::query()->create([
-                ...$this->userAttributes($telegramUser),
-                'name' => $this->name($telegramUser),
-                'email' => $this->telegramEmail($telegramUser['id']),
-                'password' => Hash::make(Str::password(48)),
-            ]);
+            $user = User::query()
+                ->where('email', $this->telegramEmail($telegramUser['id']))
+                ->first();
+        }
+
+        if (! $user) {
+            $user = User::query()->create($this->newTelegramUserAttributes($telegramUser));
         } else {
             $user->forceFill($this->userAttributes($telegramUser))->save();
         }
@@ -172,6 +173,20 @@ class TelegramAuthController extends Controller
             'telegram_last_name' => $telegramUser['last_name'] ?? null,
             'telegram_photo_url' => $telegramUser['photo_url'] ?? null,
             'telegram_auth_date' => $telegramUser['auth_date'],
+        ];
+    }
+
+    /**
+     * @param  array{id: int, username?: string|null, first_name?: string|null, last_name?: string|null, photo_url?: string|null, auth_date: Carbon}  $telegramUser
+     * @return array<string, mixed>
+     */
+    private function newTelegramUserAttributes(array $telegramUser): array
+    {
+        return [
+            ...$this->userAttributes($telegramUser),
+            'name' => $this->name($telegramUser),
+            'email' => $this->telegramEmail($telegramUser['id']),
+            'password' => Hash::make(Str::password(48)),
         ];
     }
 

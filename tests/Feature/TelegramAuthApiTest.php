@@ -61,6 +61,32 @@ class TelegramAuthApiTest extends TestCase
         $this->assertAuthenticatedAs($user->refresh());
     }
 
+    public function test_telegram_login_reuses_existing_technical_email_user_without_telegram_id(): void
+    {
+        $user = User::factory()->create([
+            'telegram_id' => null,
+            'telegram_username' => null,
+            'email' => 'telegram-123456@telegram.local',
+        ]);
+
+        $response = $this->postJsonWithCsrf('/api/auth/telegram/login', [
+            'init_data' => $this->telegramInitData([
+                'id' => 123456,
+                'username' => 'roman',
+                'first_name' => 'Roman',
+            ]),
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('user.id', $user->id)
+            ->assertJsonPath('user.telegram_id', 123456)
+            ->assertJsonPath('user.telegram_username', 'roman');
+
+        $this->assertAuthenticatedAs($user->refresh());
+        $this->assertDatabaseCount('users', 1);
+    }
+
     public function test_telegram_login_rejects_invalid_signature(): void
     {
         $this->postJsonWithCsrf('/api/auth/telegram/login', [
